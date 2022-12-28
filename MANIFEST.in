@@ -1,0 +1,6 @@
+graft YAMDOG
+
+include .bumpversion.cfg
+include LICENSE.txt
+
+global-exclude *.py[cod] __pycache__/*
