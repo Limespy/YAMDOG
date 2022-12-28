@@ -1,3 +1,3 @@
-from API import *
+from .API import *
 
 __version__ = '0.1.0'

@@ -24,7 +24,7 @@ if '--print' in sys.argv:
 # SETUP GLOBALS
 BASE_DIR = pathlib.Path(__file__).parent
 PACKAGE_NAME = 'YAMDOG'
-PYTHON_VERSION = '>=3.10'
+PYTHON_VERSION = '>=3.9'
 PATH_LICENCE = next(BASE_DIR.glob('LICENSE*'))
 PATH_SCR = BASE_DIR / PACKAGE_NAME
 PATH_INIT = next(PATH_SCR.rglob('__init__.py'))
