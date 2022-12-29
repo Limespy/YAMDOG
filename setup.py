@@ -7,8 +7,7 @@
 import pathlib
 from setuptools import find_packages, setup
 import sys
-
-if '--print' in sys.argv:
+if '--tests' in sys.argv or '--print' in sys.argv:
     import colorama as col
     RESET = col.Style.RESET_ALL
     BLACK = col.Fore.BLACK
@@ -26,8 +25,8 @@ BASE_DIR = pathlib.Path(__file__).parent
 PACKAGE_NAME = 'YAMDOG'
 PYTHON_VERSION = '>=3.9'
 PATH_LICENCE = next(BASE_DIR.glob('LICENSE*'))
-PATH_SCR = BASE_DIR / PACKAGE_NAME
-PATH_INIT = next(PATH_SCR.rglob('__init__.py'))
+PATH_SRC = BASE_DIR / 'src'
+PATH_INIT = next(PATH_SRC.rglob('__init__.py'))
 PATH_README = next(BASE_DIR.glob('README*'))
 #%%═════════════════════════════════════════════════════════════════════
 # Run tests first
@@ -81,7 +80,7 @@ if '--print' in sys.argv:
     print(f'\n{header("Starting packaging setup", "=", "=")}\n')
 setup_info = {}
 # Getting package name
-setup_info['name'] = PACKAGE_NAME
+setup_info['name'] = PATH_INIT.parent.stem
 #───────────────────────────────────────────────────────────────────────
 # Version
 with open(PATH_INIT, 'r', encoding = 'utf8') as f:
@@ -123,13 +122,13 @@ elif PATH_README.suffix != '.rst':
     raise TypeError(f'README file type not recognised: {PATH_README}')
 #───────────────────────────────────────────────────────────────────────
 # packages
-setup_info['packages']  = find_packages(PACKAGE_NAME)
+setup_info['packages']  = find_packages('src')
 #───────────────────────────────────────────────────────────────────────
 # Packages Dir
-setup_info['package_dir']  = {'': PACKAGE_NAME}
+setup_info['package_dir']  = {'': f'src'}
 #───────────────────────────────────────────────────────────────────────
 # Py Modules
-setup_info['py_modules'] = [path.stem for path in PATH_SCR.rglob('*.py')]
+# setup_info['py_modules'] = [path.stem for path in PATH_SRC.rglob('*.py')]
 #───────────────────────────────────────────────────────────────────────
 # Include  Package Data
 setup_info['include_package_data'] = True
@@ -142,7 +141,7 @@ setup_info['classifiers']   = [
     c('License', 'OSI Approved', 'MIT License'),
     *cset('Operating System', 'Unix', 'POSIX', ('Microsoft', 'Windows')),
     *cset(('Programming Language', 'Python'),
-          '3', ('3', 'Only'), PYTHON_VERSION[-4:])]
+          '3', ('3', 'Only'), '3.9', '3.10', '3.11')]
 #───────────────────────────────────────────────────────────────────────
 # Project URLs
 setup_info['project_urls'] = {
@@ -194,4 +193,6 @@ if '--print' in sys.argv:
     sys.argv.pop(sys.argv.index('--print'))
 #%%═════════════════════════════════════════════════════════════════════
 # RUNNING THE SETUP
+for path in (BASE_DIR / 'dist').glob('*'):
+    path.unlink()
 setup(**setup_info)
