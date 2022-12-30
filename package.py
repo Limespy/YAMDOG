@@ -121,7 +121,7 @@ with open(PATH_README, 'r', encoding = 'utf8') as f:
         pass
     while not (line := f.readline().lstrip(' ')).startswith('\n'):
         description += line
-
+build_info['long_description_content_type'] = 'text/markdown'
 build_info['description'] = description[:-1] # Removing trailing linebreak
 #───────────────────────────────────────────────────────────────────────
 # Long Description
