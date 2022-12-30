@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yamdog"
-version = "0.2.11"
+version = "0.2.11.2"
 description = "Yet Another Markdown Only Generator"
 classifiers = [
     "Development Status :: 3 - Alpha",
