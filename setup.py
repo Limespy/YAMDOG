@@ -3,7 +3,6 @@
 #%%═════════════════════════════════════════════════════════════════════
 # IMPORT
 
-
 import pathlib
 from setuptools import find_packages, setup
 import sys
@@ -22,7 +21,6 @@ if '--tests' in sys.argv or '--print' in sys.argv:
 #%%═════════════════════════════════════════════════════════════════════
 # SETUP GLOBALS
 BASE_DIR = pathlib.Path(__file__).parent
-PACKAGE_NAME = 'YAMDOG'
 PYTHON_VERSION = '>=3.9'
 PATH_LICENCE = next(BASE_DIR.glob('LICENSE*'))
 PATH_SRC = BASE_DIR / 'src'
@@ -86,7 +84,7 @@ setup_info['name'] = PATH_INIT.parent.stem
 with open(PATH_INIT, 'r', encoding = 'utf8') as f:
     while not (line := f.readline().lstrip()).startswith('__version__'):
         pass
-    setup_info['version'] = line.split('=')[-1].strip(" '")
+    setup_info['version'] = line.split('=')[-1].strip().strip("'")
 #───────────────────────────────────────────────────────────────────────
 # Licence
 with open(PATH_LICENCE, 'r', encoding = 'utf8') as f:
@@ -125,7 +123,7 @@ elif PATH_README.suffix != '.rst':
 setup_info['packages']  = find_packages('src')
 #───────────────────────────────────────────────────────────────────────
 # Packages Dir
-setup_info['package_dir']  = {'': f'src'}
+setup_info['package_dir']  = {'': 'src'}
 #───────────────────────────────────────────────────────────────────────
 # Py Modules
 # setup_info['py_modules'] = [path.stem for path in PATH_SRC.rglob('*.py')]
@@ -164,8 +162,8 @@ with open(BASE_DIR / 'dependencies_dev.txt', encoding = 'utf8') as f:
                                     [line.rstrip() for line in f.readlines()]}
 #───────────────────────────────────────────────────────────────────────
 # Entry points
-setup_info['entry_points'] = {'console_scripts':
-    [f'{setup_info["name"]} = {setup_info["name"]}.CLI:main',]}
+# setup_info['entry_points'] = {'console_scripts':
+#     [f'{setup_info["name"]} = {setup_info["name"]}.CLI:main',]}
 #%%═════════════════════════════════════════════════════════════════════
 # PRINTING SETUP INFO
 if '--print' in sys.argv:
