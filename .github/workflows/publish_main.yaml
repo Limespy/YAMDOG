@@ -1,1 +1,5 @@
-name: Publish release to PyPI
+name: Publish release to PyPI'
+on:
+  push:
+    branches:
+      - main
