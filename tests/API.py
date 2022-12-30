@@ -2,12 +2,9 @@
 #%%═════════════════════════════════════════════════════════════════════
 # IMPORT
 
-
-
 import os
 import pathlib
 import unittest
-
 
 PATH_TESTS = pathlib.Path(__file__).parent
 PATH_REPO = PATH_TESTS.parent
