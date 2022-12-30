@@ -1,23 +1,40 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = [
+    "setuptools>=64.0",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "yamdog"
 version = "0.2.11"
-authors = [
-  { name="Limespy"},
-]
-license = {text = "MIT License"}
-description = "A small example package"
-readme = "README.md"
-requires-python = ">=3.9"
+authors = []
+description = "Yet Another Markdown Only Generator"
 classifiers = [
-    "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+    "Operating System :: Unix",
+    "Operating System :: POSIX",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
+requires-python = ">=3.9"
+dependencies = []
+
+[project.license]
+text = "MIT License"
 
 [project.urls]
-"Homepage" = "https://github.com/pypa/sampleproject"
-"Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
+Changelog = "https://github.com/Limespy/yamdog/blob/main/README.md#Changelog"
+"Issue Tracker" = "https://github.com/Limespy/yamdog/issues"
+
+[project.optional-dependencies]
+dev = [
+    "mypy==0.991",
+    "twine >= 4.0, <4.1",
+    "colorama >= 0.4, <0.5",
+    "tomli-w >= 1.0.0, <1.1",
+    "wheel >= 0.38",
+]

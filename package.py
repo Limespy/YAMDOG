@@ -3,10 +3,20 @@
 #%%═════════════════════════════════════════════════════════════════════
 # IMPORT
 
+import tomli_w
 import pathlib
-from setuptools import find_packages, setup
+from build import __main__ as build
+import tomllib
+
 import sys
-if '--tests' in sys.argv or '--print' in sys.argv:
+
+if '--print' in sys.argv:
+    sys.argv.pop(sys.argv.index('--print'))
+    is_verbose = True
+else:
+    is_verbose = False
+
+if '--tests' in sys.argv or is_verbose:
     import colorama as col
     RESET = col.Style.RESET_ALL
     BLACK = col.Fore.BLACK
@@ -25,7 +35,8 @@ PYTHON_VERSION = '>=3.9'
 PATH_LICENCE = next(BASE_DIR.glob('LICENSE*'))
 PATH_SRC = BASE_DIR / 'src'
 PATH_INIT = next(PATH_SRC.rglob('__init__.py'))
-PATH_README = next(BASE_DIR.glob('README*'))
+PATH_README = BASE_DIR / 'README.md'
+PATH_PYPROJECT = BASE_DIR / 'pyproject.toml'
 #%%═════════════════════════════════════════════════════════════════════
 # Run tests first
 if '--tests' in sys.argv:
@@ -73,33 +84,35 @@ def cset(key, *values):
             out.append(c(*key, value))
     return out
 #%%═════════════════════════════════════════════════════════════════════
-# SETUP INFO
-if '--print' in sys.argv:
+# BUILD INFO
+
+# Loading the pyproject TOML file
+pyproject = tomllib.loads(PATH_PYPROJECT.read_text())
+build_info = pyproject['project']
+
+if is_verbose:
     print(f'\n{header("Starting packaging setup", "=", "=")}\n')
-setup_info = {}
+build_info = {}
 # Getting package name
-setup_info['name'] = PATH_INIT.parent.stem
+build_info['name'] = PATH_INIT.parent.stem
 #───────────────────────────────────────────────────────────────────────
 # Version
 with open(PATH_INIT, 'r', encoding = 'utf8') as f:
     while not (line := f.readline().lstrip()).startswith('__version__'):
         pass
-    setup_info['version'] = line.split('=')[-1].strip().strip("'")
+    build_info['version'] = line.split('=')[-1].strip().strip("'")
 #───────────────────────────────────────────────────────────────────────
 # Licence
 with open(PATH_LICENCE, 'r', encoding = 'utf8') as f:
-    LICENSE_NAME = f'{f.readline().strip().split()[0]}'
-setup_info['license'] = LICENSE_NAME
+    LICENSE_NAME = f'{f.readline().strip()}'
+build_info['license'] = {'text': LICENSE_NAME}
 #───────────────────────────────────────────────────────────────────────
 # Author
-setup_info['author'] = 'Limespy'
-#───────────────────────────────────────────────────────────────────────
-# Author Email
-setup_info['author_email'] = ''
+build_info['authors'] = [{'name': 'Limespy'}]
 #───────────────────────────────────────────────────────────────────────
 # URL
-setup_info['url'] = f'https://github.com/{setup_info["author"]}/{setup_info["name"]}'
-GITHUB_MAIN_URL = f'{setup_info["url"]}/blob/main/'
+URL = f'https://github.com/{build_info["authors"][0]["name"]}/{build_info["name"]}'
+GITHUB_MAIN_URL = f'{URL}/blob/main/'
 #───────────────────────────────────────────────────────────────────────
 # Description
 with open(PATH_README, 'r', encoding = 'utf8') as f:
@@ -109,65 +122,46 @@ with open(PATH_README, 'r', encoding = 'utf8') as f:
     while not (line := f.readline().lstrip(' ')).startswith('\n'):
         description += line
 
-setup_info['description'] = description[:-1] # Removing trailing linebreak
+build_info['description'] = description[:-1] # Removing trailing linebreak
 #───────────────────────────────────────────────────────────────────────
 # Long Description
-with open(PATH_README, 'r', encoding = 'utf8') as f:
-    setup_info['long_description'] = f.read().replace('./', GITHUB_MAIN_URL)
-if PATH_README.suffix == '.md':
-    setup_info['long_description_content_type'] = 'text/markdown'
-elif PATH_README.suffix != '.rst':
-    raise TypeError(f'README file type not recognised: {PATH_README}')
-#───────────────────────────────────────────────────────────────────────
-# packages
-setup_info['packages']  = find_packages('src')
-#───────────────────────────────────────────────────────────────────────
-# Packages Dir
-setup_info['package_dir']  = {'': 'src'}
-#───────────────────────────────────────────────────────────────────────
-# Py Modules
-# setup_info['py_modules'] = [path.stem for path in PATH_SRC.rglob('*.py')]
-#───────────────────────────────────────────────────────────────────────
-# Include  Package Data
-setup_info['include_package_data'] = True
+long_description = PATH_README.read_text().replace('./', GITHUB_MAIN_URL)
 #───────────────────────────────────────────────────────────────────────
 # Classifiers
 # complete classifier list:
 #   http://pypi.python.org/pypi?%3Aaction=list_classifiers
-setup_info['classifiers']   = [
+build_info['classifiers']   = [
     c('Development Status', '3 - Alpha'),
-    c('License', 'OSI Approved', 'MIT License'),
+    c('License', 'OSI Approved', LICENSE_NAME),
     *cset('Operating System', 'Unix', 'POSIX', ('Microsoft', 'Windows')),
     *cset(('Programming Language', 'Python'),
           '3', ('3', 'Only'), '3.9', '3.10', '3.11')]
 #───────────────────────────────────────────────────────────────────────
 # Project URLs
-setup_info['project_urls'] = {
+build_info['urls'] = {
     'Changelog': f'{GITHUB_MAIN_URL}{PATH_README.name}#Changelog',
-    'Issue Tracker': f'{setup_info["url"]}/issues'}
+    'Issue Tracker': f'{URL}/issues'}
 #───────────────────────────────────────────────────────────────────────
 # Keywords
-setup_info['keywords'] = ['markdown']
+# build_info['keywords'] = ['markdown']
 #───────────────────────────────────────────────────────────────────────
 # Python requires
-setup_info['python_requires']  = PYTHON_VERSION
+build_info['requires-python']  = PYTHON_VERSION
 #───────────────────────────────────────────────────────────────────────
 # Install requires
 with open(BASE_DIR / 'dependencies.txt', encoding = 'utf8') as f:
-    setup_info['install_requires'] = [line.rstrip() for line in f.readlines()]
+    build_info['dependencies'] = [line.rstrip() for line in f.readlines()]
 #───────────────────────────────────────────────────────────────────────
 # Extras require
 with open(BASE_DIR / 'dependencies_dev.txt', encoding = 'utf8') as f:
-    setup_info['extras_require'] = {'dev':
+    build_info['optional-dependencies'] = {'dev':
                                     [line.rstrip() for line in f.readlines()]}
-#───────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────
 # Entry points
-# setup_info['entry_points'] = {'console_scripts':
-#     [f'{setup_info["name"]} = {setup_info["name"]}.CLI:main',]}
 #%%═════════════════════════════════════════════════════════════════════
 # PRINTING SETUP INFO
-if '--print' in sys.argv:
-    for key, value in setup_info.items():
+if is_verbose:
+    for key, value in build_info.items():
         print(f'\n{header(key)}\n')
         if isinstance(value, list):
             print('[', end = '')
@@ -187,10 +181,20 @@ if '--print' in sys.argv:
             print('}')
         else:
             print(value)
-    print(f'\n{header("Calling setup", "=", "=")}\n')
-    sys.argv.pop(sys.argv.index('--print'))
 #%%═════════════════════════════════════════════════════════════════════
-# RUNNING THE SETUP
+# RUNNING THE BUILD
+pyproject['project'] = build_info
+PATH_PYPROJECT.write_text(tomli_w.dumps(pyproject))
 for path in (BASE_DIR / 'dist').glob('*'):
     path.unlink()
-setup(**setup_info)
+if is_verbose:
+    print(f'\n{header("Replacing README", "=", "=")}\n')
+PATH_LOCAL_README = PATH_README.rename(PATH_README.parent /'.README.md')
+PATH_README.write_text(long_description)
+if is_verbose:
+    print(f'\n{header("Calling build", "=", "=")}\n')
+build.main([])
+if is_verbose:
+    print(f'\n{header("Returning README", "=", "=")}\n')
+PATH_README.unlink()
+PATH_LOCAL_README.rename(PATH_README.parent / 'README.md')
