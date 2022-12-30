@@ -90,9 +90,9 @@ def cset(key, *values):
 pyproject = tomllib.loads(PATH_PYPROJECT.read_text())
 build_info = pyproject['project']
 
+
 if is_verbose:
     print(f'\n{header("Starting packaging setup", "=", "=")}\n')
-build_info = {}
 # Getting package name
 build_info['name'] = PATH_INIT.parent.stem
 #───────────────────────────────────────────────────────────────────────
@@ -107,9 +107,6 @@ with open(PATH_LICENCE, 'r', encoding = 'utf8') as f:
     LICENSE_NAME = f'{f.readline().strip()}'
 build_info['license'] = {'text': LICENSE_NAME}
 #───────────────────────────────────────────────────────────────────────
-# Author
-build_info['authors'] = [{'name': 'Limespy'}]
-#───────────────────────────────────────────────────────────────────────
 # URL
 URL = f'https://github.com/{build_info["authors"][0]["name"]}/{build_info["name"]}'
 GITHUB_MAIN_URL = f'{URL}/blob/main/'
@@ -121,7 +118,6 @@ with open(PATH_README, 'r', encoding = 'utf8') as f:
         pass
     while not (line := f.readline().lstrip(' ')).startswith('\n'):
         description += line
-build_info['long_description_content_type'] = 'text/markdown'
 build_info['description'] = description[:-1] # Removing trailing linebreak
 #───────────────────────────────────────────────────────────────────────
 # Long Description
@@ -160,14 +156,15 @@ with open(BASE_DIR / 'dependencies_dev.txt', encoding = 'utf8') as f:
 # Entry points
 #%%═════════════════════════════════════════════════════════════════════
 # PRINTING SETUP INFO
+
 if is_verbose:
     for key, value in build_info.items():
         print(f'\n{header(key)}\n')
         if isinstance(value, list):
             print('[', end = '')
             if value:
-                print(value.pop(0), end = '')
-                for item in value:
+                print(value[0], end = '')
+                for item in value[1:]:
                     print(f',\n {item}', end = '')
             print(']')
         elif isinstance(value, dict):
@@ -183,6 +180,7 @@ if is_verbose:
             print(value)
 #%%═════════════════════════════════════════════════════════════════════
 # RUNNING THE BUILD
+# print(build_info)
 pyproject['project'] = build_info
 PATH_PYPROJECT.write_text(tomli_w.dumps(pyproject))
 for path in (BASE_DIR / 'dist').glob('*'):

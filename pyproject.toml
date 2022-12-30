@@ -7,9 +7,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "yamdog"
 version = "0.2.11"
-authors = []
 description = "Yet Another Markdown Only Generator"
 classifiers = [
+    "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
     "Operating System :: Unix",
     "Operating System :: POSIX",
@@ -21,7 +21,11 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 requires-python = ">=3.9"
+readme = "README.md"
 dependencies = []
+authors = [
+    { name = "Limespy" },
+]
 
 [project.license]
 text = "MIT License"
