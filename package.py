@@ -100,7 +100,9 @@ build_info['name'] = PATH_INIT.parent.stem
 with open(PATH_INIT, 'r', encoding = 'utf8') as f:
     while not (line := f.readline().lstrip()).startswith('__version__'):
         pass
-    build_info['version'] = line.split('=')[-1].strip().strip("'")
+    main_version = line.split('=')[-1].strip().strip("'")
+    build_version = int(build_info['version'].split('.')[-1]) + 1
+    build_info['version'] = f'{main_version}.{build_version}'
 #───────────────────────────────────────────────────────────────────────
 # Licence
 with open(PATH_LICENCE, 'r', encoding = 'utf8') as f:
