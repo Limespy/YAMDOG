@@ -68,21 +68,13 @@ def header(text: str, linechar = '─', endchar = '┐', headerwidth  =  60):
 #───────────────────────────────────────────────────────────────────────
 # For classifiers
 def c(*args):
-    out = f'{args[0]} :: {args[1]}'
-    for arg in args[2:]:
-        out += f' :: {arg}'
-    return out
+    return ' :: '.join(args)
 #───────────────────────────────────────────────────────────────────────
 def cset(key, *values):
-    out = []
     if isinstance(key, str):
         key = (key, )
-    for value in values:
-        if isinstance(value, tuple):
-            out.append(c(*key, *value))
-        else:
-            out.append(c(*key, value))
-    return out
+    return [c(*key, *value) if isinstance(value, tuple) else c(*key, value)
+            for value in values]
 #%%═════════════════════════════════════════════════════════════════════
 # BUILD INFO
 
