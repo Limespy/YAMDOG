@@ -12,16 +12,19 @@ from collections.abc import Sequence
 from typing import Union as U
 from typing import Any, Generator, Iterable, Optional
 
+
+#══════════════════════════════════════════════════════════════════════════════
+# AUXILIARIES
 INDENT = '    '
-HLine = '---'
 
-class Flavour(enum.Enum):
-    GITHUB = enum.auto
-    GITLAB = enum.auto
+@dataclass(frozen = True, slots = True)
+class Flavour:
+    name: str
 
-GITHUB = Flavour.GITHUB
-GITLAB = Flavour.GITLAB
+BASIC = Flavour('Basic')
 
+GITHUB = Flavour('GitHub')
+GITLAB = Flavour('GitHub')
 #══════════════════════════════════════════════════════════════════════════════
 def padd(items: Iterable[str], widths: Iterable[int]
          ) -> Generator[str, None, None]:
@@ -49,6 +52,7 @@ def collect_iter(items: Iterable) -> tuple[dict, dict]:
                 old |= new
     return output
 #══════════════════════════════════════════════════════════════════════════════
+# ELEMENTS BASE CLASSES
 @dataclass(slots = True)
 class Element(ABC):
     def __add__(self, other):
@@ -74,6 +78,83 @@ class IterableElement(Element):
     #─────────────────────────────────────────────────────────────────────────
     def __iter__(self):
         return iter(self.content)   # type: ignore
+#══════════════════════════════════════════════════════════════════════════════
+# BASIC ELEMENTS
+#══════════════════════════════════════════════════════════════════════════════
+# def parse_headings(headings):
+#     for heading in headings:
+#         text = str(heading.text).strip()
+#         (heading.level, Link(text, f'#{text}'))
+
+@dataclass(slots = True)
+class Document(IterableElement):
+    content: list = field(default_factory = list) # attribute name important
+    header_text: Any = None
+    header_language: Any = None
+    # TOC: bool = True
+    #─────────────────────────────────────────────────────────────────────────
+    def __post_init__(self)  -> None:
+        if (self.header_text is None) ^ (self.header_language is None):
+            raise ValueError('Header and language must be specified together')
+    #─────────────────────────────────────────────────────────────────────────
+    def __add__(self, item):
+        if isinstance(item, self.__class__):
+            self.content += item.content
+        else:
+            self.content.append(item)
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def __iadd__(self, item):
+        return self.__add__(item)
+    #─────────────────────────────────────────────────────────────────────────
+    def __str__(self)  -> str:
+        content = list(self.content)
+        # Making heading
+        if self.header_text is not None and self.header_language is not None:
+            language = str(self.header_language).strip().lower()
+            if language == 'yaml':
+                header = f'---\n{self.header_text}\n---'
+            elif language == 'toml':
+                header = f'+++\n{self.header_text}\n+++'
+            elif language == 'json':
+                header = f';;;\n{self.header_text}\n;;;'
+            else:
+                header = f'---{language}\n{self.header_text}\n---'
+            content.insert(0, header)
+
+        references, footnotes = self._collect()
+
+        # Handling footnotes
+        for index, footnote in enumerate(footnotes, start = 1):
+            footnote._index = index
+        content.append('\n'.join(f'[^{footnote._index}]: {footnote.content}'
+                                 for footnote in footnotes))
+
+        # Handling references
+        for index, link in enumerate(references, start = 1):
+            link._index = index
+        content.append('\n'.join(f'[{link._index}]: <{link.url}> "{link.title}"'
+                                 for link in references))
+        # # Creating TOC
+        # if self.TOC:
+        #     headings = [item for item in self.content
+        #                 if isinstance(item, Heading) and item.include_in_TOC]
+
+        return '\n\n'.join(str(item) for item in content)
+    #─────────────────────────────────────────────────────────────────────────
+    def to_file(self,
+                filepath: pathlib.Path = pathlib.Path.cwd() / 'document.md'
+                ) -> None:
+        with open(filepath, 'w+', encoding  = 'utf8') as f:
+            f.write(str(self))
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
+class Paragraph(IterableElement):
+    content: list = field(default_factory = list)
+    separator: str = ''
+    #─────────────────────────────────────────────────────────────────────────
+    def __str__(self) -> str:
+        return self.separator.join(str(item) for item in self.content)
 #══════════════════════════════════════════════════════════════════════════════
 notations = {'bold': '**',
              'italic': '*',
@@ -117,64 +198,6 @@ class StylisedText(ContainerElement):
             text = f'{marker}{text}{marker}'
         return text
 #══════════════════════════════════════════════════════════════════════════════
-@dataclass(slots = True)
-class Address(Element):
-    text: Any
-    def __str__(self) -> str:
-        return f'<{self.text}>'
-#══════════════════════════════════════════════════════════════════════════════
-@dataclass(slots = True)
-class Monospace(Element):
-    text: Any
-    def __str__(self) -> str:
-        return f'`{self.text}`'
-#══════════════════════════════════════════════════════════════════════════════
-@dataclass(slots = True)
-class Paragraph(IterableElement):
-    content: list = field(default_factory = list)
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self) -> str:
-        return ' '.join(str(item) for item in self.content)
-#══════════════════════════════════════════════════════════════════════════════
-@dataclass(slots = True)
-class Link(Element):
-    """Do not change `_index` or `_hash`"""
-    text: Any
-    url: Any
-    title: Any = None
-    _index: int = 0
-    _hash: Optional[int] = None
-    #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> tuple[dict, dict]:
-        if self.title is None:
-            return {}, {}
-        return {self: None}, {}
-    #─────────────────────────────────────────────────────────────────────────
-    def __hash__(self) -> int:
-        if self._hash is None:
-            return hash(str(self.text)) + hash(str(self.url)) + hash(str(self.title))
-        return self._hash
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self) -> str:
-        if self._index:
-            return f'[{self.text}][{self._index}]'
-        return f'[{self.text}]({self.url})'
-#══════════════════════════════════════════════════════════════════════════════
-@dataclass(slots = True)
-class Footnote(Element):
-    """Do not change `_index`"""
-    content: Any
-    _index: int = 0 # TODO something with `field` to prevent assignment at init
-    #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> tuple[dict, dict]:
-        return {}, {self: None}
-    #─────────────────────────────────────────────────────────────────────────
-    def __hash__(self) -> int:
-        return hash(str(self.content))
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self) -> str:
-        return f'[^{self._index}]'
-#══════════════════════════════════════════════════════════════════════════════
 listingprefixes = {'unordered': (itertools.repeat('- '), 2),
                    'ordered': ((f'{n}. ' for n in itertools.count(start = 1, step = 1)), 3),
                    'checkbox': (itertools.repeat('- [ ] '), 6),
@@ -204,26 +227,60 @@ class Listing(IterableElement):
         return output[:-1]
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
-class InlineMath(Element):
+class Heading(Element):
+    level: int
     text: Any
-    flavour: Flavour = GITHUB
+    alt_style: bool = False
+    in_TOC: bool = True
     def __str__(self) -> str:
-        if self.flavour == GITHUB:
-            return f'${self.text}$'
-        elif self.flavour == GITLAB:
-            return f'$`{self.text}`$'
-        raise ValueError(f'Flavour {self.flavour} not recognised')
+        text = str(self.text)
+        toccomment = '' if self.in_TOC else ' <!-- omit in toc -->'
+        if self.alt_style and (self.level == 1 or self.level == 2):
+            return ''.join((text, toccomment, '\n',
+                            ('=', '-')[self.level - 1] * len(text)))
+        else: # The normal style with #
+            return ''.join((self.level * "#", ' ', text, toccomment))
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
-class MathBlock(Element):
-    text: Any
-    flavour: Flavour = GITHUB
+class CodeBlock(Element):
+    language: Any
+    content: Any
+    #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        if self.flavour == GITHUB:
-            return f'$$\n{self.text}\n$$'
-        elif self.flavour == GITLAB:
-            return f'```math\n{self.text}\n```'
-        raise ValueError(f'Flavour {self.flavour} not recognised')
+        return f'```{self.language}\n{self.content}\n```'
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
+class Address(Element):
+    text: Any
+    def __str__(self) -> str:
+        return f'<{self.text}>'
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
+class Monospace(Element):
+    text: Any
+    def __str__(self) -> str:
+        return f'`{self.text}`'
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
+class Link(Element):
+    """Do not change `_index` or `_hash`"""
+    text: Any
+    url: Any
+    title: Any = None
+    _index: int = 0
+    #─────────────────────────────────────────────────────────────────────────
+    def _collect(self) -> tuple[dict, dict]:
+        if self.title is None:
+            return {}, {}
+        return {self: None}, {}
+    #─────────────────────────────────────────────────────────────────────────
+    def __hash__(self) -> int:
+        return hash(str(self.url)) + hash(str(self.title))
+    #─────────────────────────────────────────────────────────────────────────
+    def __str__(self) -> str:
+        if self._index:
+            return f'[{self.text}][{self._index}]'
+        return f'[{self.text}]({self.url})'
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class Table(IterableElement):
@@ -303,6 +360,48 @@ class Table(IterableElement):
             output += self._str_row_sparse(padd(row, max_widths))
         return output[:-1]
 #══════════════════════════════════════════════════════════════════════════════
+# EXTENDED ELEMENTS
+
+
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
+class Footnote(Element):
+    """Do not change `_index`"""
+    content: Any
+    _index: int = 0 # TODO something with `field` to prevent assignment at init
+    #─────────────────────────────────────────────────────────────────────────
+    def _collect(self) -> tuple[dict, dict]:
+        return {}, {self: None}
+    #─────────────────────────────────────────────────────────────────────────
+    def __hash__(self) -> int:
+        return hash(str(self.content))
+    #─────────────────────────────────────────────────────────────────────────
+    def __str__(self) -> str:
+        return f'[^{self._index}]'
+
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
+class InlineMath(Element):
+    text: Any
+    flavour: Flavour = GITHUB
+    def __str__(self) -> str:
+        if self.flavour == GITHUB:
+            return f'${self.text}$'
+        elif self.flavour == GITLAB:
+            return f'$`{self.text}`$'
+        raise ValueError(f'Flavour {self.flavour} not recognised')
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
+class MathBlock(Element):
+    text: Any
+    flavour: Flavour = GITHUB
+    def __str__(self) -> str:
+        if self.flavour == GITHUB:
+            return f'$$\n{self.text}\n$$'
+        elif self.flavour == GITLAB:
+            return f'```math\n{self.text}\n```'
+        raise ValueError(f'Flavour {self.flavour} not recognised')
+#══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class QuoteBlock(ContainerElement):
     content: Any
@@ -314,29 +413,6 @@ class QuoteBlock(ContainerElement):
 class HRule(Element):
     def __str__(self) -> str:
         return '---'
-#══════════════════════════════════════════════════════════════════════════════
-@dataclass(slots = True)
-class Heading(Element):
-    level: int
-    text: Any
-    alt_style: bool = False
-    in_TOC: bool = True
-    def __str__(self) -> str:
-        text = str(self.text)
-        toccomment = '' if self.in_TOC else ' <!-- omit in toc -->'
-        if self.alt_style and (self.level == 1 or self.level == 2):
-            return ''.join((text, toccomment, '\n',
-                            ('=', '-')[self.level - 1] * len(text)))
-        else: # The normal style with #
-            return ''.join((self.level * "#", text, toccomment))
-#══════════════════════════════════════════════════════════════════════════════
-@dataclass(slots = True)
-class CodeBlock(Element):
-    language: Any
-    content: Any
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self) -> str:
-        return f'```{self.language}\n{self.content}\n```'
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class Image(Element):
@@ -352,12 +428,8 @@ class Emoji(Element):
     code: Any
     def __str__(self) -> str:
         return f':{self.code}:'
-#══════════════════════════════════════════════════════════════════════════════
-# def parse_headings(headings):
-#     for heading in headings:
-#         text = str(heading.text).strip()
-#         (heading.level, Link(text, f'#{text}'))
 
+<<<<<<< Updated upstream
 @dataclass(slots = True)
 class Document(IterableElement):
     content: list = field(default_factory = list) # attribute name important
@@ -420,3 +492,9 @@ class Document(IterableElement):
                 ) -> None:
         with open(filepath, 'w+', encoding  = 'utf8') as f:
             f.write(str(self))
+=======
+__all__ = ['Element']
+__all__ += list({cls.__name__ for cls in Element.__subclasses__()})
+__all__ += list({cls.__name__ for cls in IterableElement.__subclasses__()})
+__all__ += list({cls.__name__ for cls in ContainerElement.__subclasses__()})
+>>>>>>> Stashed changes
