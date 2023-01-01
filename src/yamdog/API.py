@@ -429,72 +429,7 @@ class Emoji(Element):
     def __str__(self) -> str:
         return f':{self.code}:'
 
-<<<<<<< Updated upstream
-@dataclass(slots = True)
-class Document(IterableElement):
-    content: list = field(default_factory = list) # attribute name important
-    header_text: Any = None
-    header_language: Any = None
-    # TOC: bool = True
-    #─────────────────────────────────────────────────────────────────────────
-    def __post_init__(self)  -> None:
-        if (self.header_text is None) ^ (self.header_language is None):
-            raise ValueError('Header and language must be specified together')
-    #─────────────────────────────────────────────────────────────────────────
-    def __add__(self, item):
-        if isinstance(item, Document):
-            self.content + item.content
-        else:
-            self.content.append(item)
-        return self
-    #─────────────────────────────────────────────────────────────────────────
-    def __iadd__(self, item):
-        return self.__add__(item)
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self)  -> str:
-        content = list(self.content)
-        # Making heading
-        if self.header_text is not None and self.header_language is not None:
-            language = str(self.header_language).strip().lower()
-            if language == 'yaml':
-                header = f'---\n{self.header_text}\n---'
-            elif language == 'toml':
-                header = f'+++\n{self.header_text}\n+++'
-            elif language == 'json':
-                header = f';;;\n{self.header_text}\n;;;'
-            else:
-                header = f'---{language}\n{self.header_text}\n---'
-            content.insert(0, header)
-
-        references, footnotes = self._collect()
-
-        if footnotes: # Handling footnotes
-            for index, footnote in enumerate(footnotes, start = 1):
-                footnote._index = index
-            content.append('\n'.join(f'[^{footnote._index}]: {footnote.content}'
-                                    for footnote in footnotes))
-
-        if references: # Handling references
-            for index, link in enumerate(references, start = 1):
-                link._index = index
-            content.append('\n'.join(f'[{link._index}]: <{link.url}> "{link.title}"'
-                                    for link in references))
-
-        # # Creating TOC
-        # if self.TOC:
-        #     headings = [item for item in self.content
-        #                 if isinstance(item, Heading) and item.include_in_TOC]
-
-        return '\n\n'.join(str(item) for item in content)
-    #─────────────────────────────────────────────────────────────────────────
-    def to_file(self,
-                filepath: pathlib.Path = pathlib.Path.cwd() / 'document.md'
-                ) -> None:
-        with open(filepath, 'w+', encoding  = 'utf8') as f:
-            f.write(str(self))
-=======
 __all__ = ['Element']
 __all__ += list({cls.__name__ for cls in Element.__subclasses__()})
 __all__ += list({cls.__name__ for cls in IterableElement.__subclasses__()})
 __all__ += list({cls.__name__ for cls in ContainerElement.__subclasses__()})
->>>>>>> Stashed changes
