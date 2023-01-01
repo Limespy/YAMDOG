@@ -1,28 +1,26 @@
-# YAMDOG <!-- omit in toc -->
+# YAMDOG
 
 Yet Another Markdown Only Generator
 
 ## Examples
 
-> |  a  |          b          |                       $\leq$                      |
-> |  :-- |  :-----------------: | ------------------------------------------------: |
-> |  1  |          2          | [$\leq$](https://www.snakemd.io/en/latest/usage/) |
-> |  3  | [Markdown Guide][1] |                         5                         |
-> |  7  |   [hobbit-hole][2]  |                         9                         |
-
 - Just text
 - Sublist
     - a
     - b
-- > |  a  |          b          |                       $\leq$                      |
-  > |  :-- |  :-----------------: | ------------------------------------------------: |
-  > |  1  |          2          | [$\leq$](https://www.snakemd.io/en/latest/usage/) |
-  > |  3  | [Markdown Guide][1] |                         5                         |
-  > |  7  |   [hobbit-hole][2]  |                         9                         |
+- > |  a  |           b           |                       $\leq$                      |
+  > | :-- | :-------------------: | ------------------------------------------------: |
+  > |  1  |           2           | [$\leq$](https://www.snakemd.io/en/latest/usage/) |
+  > |  3  | [YAMDOG PyPI site][1] |                         5                         |
+  > |  7  |    [hobbit-hole][2]   |                         9                         |
 - second sublisting, definition
     : First definition
     : Second definition
-- [hobbit-hole][2]
+- ***[hobbit-hole][2]***
 
-[1]: <https://www.markdownguide.org> "Guide for Markdown"
+Hmm[^1]
+
+[1]: <https://pypi.org/project/yamdog/> "PyPI page for YAMDOG"
 [2]: <https://en.wikipedia.org/wiki/Hobbit#Lifestyle> "Hobbit lifestyles"
+
+[^1]: Link in footnotes?[hobbit-hole][2]
