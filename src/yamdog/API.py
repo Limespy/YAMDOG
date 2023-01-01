@@ -396,17 +396,17 @@ class Document(IterableElement):
 
         references, footnotes = self._collect()
 
-        # Handling footnotes
-        for index, footnote in enumerate(footnotes, start = 1):
-            footnote._index = index
-        content.append('\n'.join(f'[^{footnote._index}]: {footnote.content}'
-                                 for footnote in footnotes))
+        if footnotes: # Handling footnotes
+            for index, footnote in enumerate(footnotes, start = 1):
+                footnote._index = index
+            content.append('\n'.join(f'[^{footnote._index}]: {footnote.content}'
+                                    for footnote in footnotes))
 
-        # Handling references
-        for index, link in enumerate(references, start = 1):
-            link._index = index
-        content.append('\n'.join(f'[{link._index}]: <{link.url}> "{link.title}"'
-                                 for link in references))
+        if references: # Handling references
+            for index, link in enumerate(references, start = 1):
+                link._index = index
+            content.append('\n'.join(f'[{link._index}]: <{link.url}> "{link.title}"'
+                                    for link in references))
 
         # # Creating TOC
         # if self.TOC:
