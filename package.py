@@ -16,7 +16,7 @@ if '--print' in sys.argv:
 else:
     is_verbose = False
 
-if '--tests' in sys.argv or is_verbose:
+if not '--notests' in sys.argv or is_verbose:
     import colorama as col
     RESET = col.Style.RESET_ALL
     BLACK = col.Fore.BLACK
@@ -39,7 +39,7 @@ PATH_README = BASE_DIR / 'README.md'
 PATH_PYPROJECT = BASE_DIR / 'pyproject.toml'
 #%%═════════════════════════════════════════════════════════════════════
 # Run tests first
-if '--tests' in sys.argv:
+if not '--notests' in sys.argv:
     import tests
     print('Running typing checks')
     typing_test_result = tests.typing(shell = False)
@@ -55,7 +55,8 @@ if '--tests' in sys.argv:
     failed |= bool(unit_test_result.failures)
     if failed:
         raise Exception('Tests did not pass, read above')
-    sys.argv.pop(sys.argv.index('--tests'))
+else:
+    sys.argv.pop(sys.argv.index('--notests'))
 #%%═════════════════════════════════════════════════════════════════════
 # SETUP FUNCTIONS
 def header(text: str, linechar = '─', endchar = '┐', headerwidth  =  60):

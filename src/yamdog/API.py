@@ -7,12 +7,20 @@ from abc import abstractmethod, ABC
 import itertools
 import pathlib
 
+import enum
 from collections.abc import Sequence
 from typing import Union as U
 from typing import Any, Generator, Iterable, Optional
 
 INDENT = '    '
 HLine = '---'
+
+class Flavour(enum.Enum):
+    GITHUB = enum.auto
+    GITLAB = enum.auto
+
+GITHUB = Flavour.GITHUB
+GITLAB = Flavour.GITLAB
 
 #══════════════════════════════════════════════════════════════════════════════
 def padd(items: Iterable[str], widths: Iterable[int]
@@ -21,7 +29,7 @@ def padd(items: Iterable[str], widths: Iterable[int]
         item += ((width - len(item))//2) * ' '
         yield (width - len(item)) * ' ' + item
 #══════════════════════════════════════════════════════════════════════════════
-def collect_iter(items: Iterable) -> tuple[dict]:
+def collect_iter(items: Iterable) -> tuple[dict, dict]:
     '''Doing ordered set union thing
 
     Parameters
@@ -34,7 +42,7 @@ def collect_iter(items: Iterable) -> tuple[dict]:
     dict[Link]
         list of unique items
     '''
-    output: tuple[dict[Link]] = ({}, {})
+    output: tuple[dict[Link, None], dict[Footnote, None]] = ({}, {})
     for item in items:
         if hasattr(item, '_collect'):
             for old, new in zip(output, item._collect()):
@@ -53,19 +61,19 @@ class Element(ABC):
 @dataclass(slots = True)
 class ContainerElement(Element):
     #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> dict:
-        if hasattr(self.content, '_collect'):
-            return self.content._collect()
+    def _collect(self) -> tuple[dict, dict]:
+        if hasattr(self.content, '_collect'): # type: ignore
+            return self.content._collect()  # type: ignore
         return {}, {}
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class IterableElement(Element):
     #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> str:
-        return collect_iter(self.content)
+    def _collect(self) -> tuple[dict, dict]:
+        return collect_iter(self.content)   # type: ignore
     #─────────────────────────────────────────────────────────────────────────
     def __iter__(self):
-        return iter(self.content)
+        return iter(self.content)   # type: ignore
 #══════════════════════════════════════════════════════════════════════════════
 notations = {'bold': '**',
              'italic': '*',
@@ -90,7 +98,7 @@ class StylisedText(ContainerElement):
         for invalid style attributes
     '''
     content: Any
-    style: set[str] = field(default_factory = set)
+    style: Iterable[str] = field(default_factory = set)
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self):
         if not isinstance(self.style, set):
@@ -137,7 +145,7 @@ class Link(Element):
     _index: int = 0
     _hash: Optional[int] = None
     #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> dict:
+    def _collect(self) -> tuple[dict, dict]:
         if self.title is None:
             return {}, {}
         return {self: None}, {}
@@ -156,9 +164,9 @@ class Link(Element):
 class Footnote(Element):
     """Do not change `_index`"""
     content: Any
-    _index: int = 0
+    _index: int = 0 # TODO something with `field` to prevent assignment at init
     #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> dict:
+    def _collect(self) -> tuple[dict, dict]:
         return {}, {self: None}
     #─────────────────────────────────────────────────────────────────────────
     def __hash__(self) -> int:
@@ -198,12 +206,24 @@ class Listing(IterableElement):
 @dataclass(slots = True)
 class InlineMath(Element):
     text: Any
-    flavour: str = 'GitHub'
+    flavour: Flavour = GITHUB
     def __str__(self) -> str:
-        if self.flavour == 'GitHub':
+        if self.flavour == GITHUB:
             return f'${self.text}$'
-        elif self.flavour == 'GitLab':
+        elif self.flavour == GITLAB:
             return f'$`{self.text}`$'
+        raise ValueError(f'Flavour {self.flavour} not recognised')
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
+class MathBlock(Element):
+    text: Any
+    flavour: Flavour = GITHUB
+    def __str__(self) -> str:
+        if self.flavour == GITHUB:
+            return f'$$\n{self.text}\n$$'
+        elif self.flavour == GITLAB:
+            return f'```math\n{self.text}\n```'
+        raise ValueError(f'Flavour {self.flavour} not recognised')
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class Table(IterableElement):
@@ -212,7 +232,7 @@ class Table(IterableElement):
     content: list[Sequence] = field(default_factory = list)
     compact: bool = False
     #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> dict:
+    def _collect(self) -> tuple[dict, dict]:
         output = collect_iter(self.header)
         for row in self.content:
             for old, new in zip(output, collect_iter(row)):
@@ -285,7 +305,7 @@ class Table(IterableElement):
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class QuoteBlock(ContainerElement):
-    content: Element
+    content: Any
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return '> ' + str(self.content).replace('\n', '\n> ')
@@ -300,22 +320,20 @@ class Heading(Element):
     level: int
     text: Any
     alt_style: bool = False
-    include_in_TOC: bool = True
+    in_TOC: bool = True
     def __str__(self) -> str:
+        text = str(self.text)
+        toccomment = '' if self.in_TOC else ' <!-- omit in toc -->'
         if self.alt_style and (self.level == 1 or self.level == 2):
-            text = (f'{self.text} <!-- omit in toc -->'
-                    if self.include_in_TOC else str(self.text))
-            text = f'\n{("=" if self.level == 1 else "-") * len(self.text)}'
-        else:
-            text = f'{self.level * "#"} {self.text}'
-            if self.include_in_TOC:
-                return text
-            return f'{text} <!-- omit in toc -->'
+            return ''.join((text, toccomment, '\n',
+                            ('=', '-')[self.level - 1] * len(text)))
+        else: # The normal style with #
+            return ''.join((self.level * "#", text, toccomment))
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
-class Block(Element):
-    language: str
-    content: str
+class CodeBlock(Element):
+    language: Any
+    content: Any
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f'```{self.language}\n{self.content}\n```'
@@ -323,7 +341,7 @@ class Block(Element):
 @dataclass(slots = True)
 class Image(Element):
     path: U[str, pathlib.Path]
-    alt_text: str = ''
+    alt_text: Any = ''
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f'![{self.alt_text}]({self.path})'
@@ -342,9 +360,9 @@ class Emoji(Element):
 
 @dataclass(slots = True)
 class Document(IterableElement):
-    content: list = field(default_factory = list)
+    content: list = field(default_factory = list) # attribute name important
     header_text: Any = None
-    header_language: str = None
+    header_language: Any = None
     # TOC: bool = True
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self)  -> None:
@@ -363,10 +381,9 @@ class Document(IterableElement):
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self)  -> str:
         content = list(self.content)
-
         # Making heading
         if self.header_text is not None and self.header_language is not None:
-            language = self.header_language.lower()
+            language = str(self.header_language).strip().lower()
             if language == 'yaml':
                 header = f'---\n{self.header_text}\n---'
             elif language == 'toml':
@@ -378,16 +395,18 @@ class Document(IterableElement):
             content.insert(0, header)
 
         references, footnotes = self._collect()
-        # Handling references
-        for index, link in enumerate(references, start = 1):
-            link._index = index
-        content.append('\n'.join(f'[{link._index}]: <{link.url}> "{link.title}"'
-                                 for link in references))
+
         # Handling footnotes
         for index, footnote in enumerate(footnotes, start = 1):
             footnote._index = index
         content.append('\n'.join(f'[^{footnote._index}]: {footnote.content}'
                                  for footnote in footnotes))
+
+        # Handling references
+        for index, link in enumerate(references, start = 1):
+            link._index = index
+        content.append('\n'.join(f'[{link._index}]: <{link.url}> "{link.title}"'
+                                 for link in references))
 
         # # Creating TOC
         # if self.TOC:

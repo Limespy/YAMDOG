@@ -18,9 +18,9 @@ Yet Another Markdown Only Generator
     : Second definition
 - ***[hobbit-hole][2]***
 
-Hmm[^1]
+Hmm [^1]
+
+[^1]: Link in footnotes? [hobbit-hole](https://en.wikipedia.org/wiki/Hobbit#Lifestyle)
 
 [1]: <https://pypi.org/project/yamdog/> "PyPI page for YAMDOG"
 [2]: <https://en.wikipedia.org/wiki/Hobbit#Lifestyle> "Hobbit lifestyles"
-
-[^1]: Link in footnotes?[hobbit-hole][2]
