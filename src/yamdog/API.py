@@ -195,31 +195,48 @@ class Text(ContainerElement):
 #══════════════════════════════════════════════════════════════════════════════
 listingprefixes = {'unordered': (itertools.repeat('- '), 2),
                    'ordered': ((f'{n}. ' for n in itertools.count(start = 1, step = 1)), 3),
-                   'checkbox': (itertools.repeat('- [ ] '), 6),
-                   'checkbox': (itertools.repeat('- [x] '), 6),
                    'definition': (itertools.repeat(': '), 2)}
 @dataclass(slots = True)
 class Listing(IterableElement):
     listingtype: str
-    content: list
+    content: Iterable
     #─────────────────────────────────────────────────────────────────────────
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.listingtype not in listingprefixes:
             raise ValueError(f'{self.listingtype} not in listingprefixes')
         if isinstance(self.content[0], Listing):
             raise ValueError(f'First item cannot be sublist')
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        prefix, prefix_length = listingprefixes[self.listingtype]
-        output = ''
-        for item in self.content:
+        prefixes, prefix_length = listingprefixes[self.listingtype]
+        output = []
+        for item, prefix in zip(self.content, prefixes):
             if isinstance(item, tuple):
-                output += next(prefix) + str(item[0]) + '\n'
-                output += INDENT + str(item[1]).replace('\n', '\n'+ INDENT
-                                                     ).removesuffix(INDENT) + '\n'
+                output.append(prefix + str(item[0]))
+                output.append(INDENT + str(item[1]).replace('\n', '\n'+ INDENT))
             else:
-                output += next(prefix) + str(item).replace('\n', '\n'+ ' '* prefix_length) + '\n'
-        return output[:-1]
+                output.append(prefix + str(item).replace('\n',
+                                                         '\n'+ ' '* prefix_length))
+        return '\n'.join(output)
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
+class Checkbox(ContainerElement):
+    checked: bool
+    content: Any
+    #─────────────────────────────────────────────────────────────────────────
+    def __post_init__(self) -> None:
+        if not isinstance(self.checked, bool):
+            raise TypeError(f'Check value {self.checked} must be a bool, not {type(self.level)}')
+    #─────────────────────────────────────────────────────────────────────────
+    def __bool__(self) -> bool:
+        return self.checked
+    #─────────────────────────────────────────────────────────────────────────
+    def __str__(self) -> str:
+        return f'[{"x" if self else " "}] {self.content}'
+#══════════════════════════════════════════════════════════════════════════════
+def make_checklist(items: Iterable[tuple[bool, Any]]):
+    return Listing('unordered',
+                   (Checkbox(*item) for item in items))
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class Heading(Element):
@@ -227,6 +244,13 @@ class Heading(Element):
     text: Any
     alt_style: bool = False
     in_TOC: bool = True
+    #─────────────────────────────────────────────────────────────────────────
+    def __post_init__(self) -> None:
+        if not isinstance(self.level, int):
+            raise TypeError(f'Level {self.level} type must be int, not {type(self.level)}')
+        if not 0 < self.level:
+            raise ValueError(f'Level must be greater that 0, not {self.level}')
+    #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         text = str(self.text)
         toccomment = '' if self.in_TOC else ' <!-- omit in toc -->'
@@ -361,9 +385,9 @@ class Table(IterableElement):
                     alignment_row.append(':'+ (width - 2) * '-' + ':')
                 elif item == 'right':
                     alignment_row.append((width - 1) * '-' + ':')
-            output += self._str_row_sparse(item for item in alignment_row)
+            output.append(self._str_row_sparse(item for item in alignment_row))
             for row in content:
-                output += self._str_row_sparse(pad(row, max_widths, alignment))
+                output.append(self._str_row_sparse(pad(row, max_widths, alignment)))
         return '\n'.join(output)
 #══════════════════════════════════════════════════════════════════════════════
 # EXTENDED ELEMENTS
@@ -435,7 +459,7 @@ class Emoji(Element):
     def __str__(self) -> str:
         return f':{self.code}:'
 
-__all__ = ['Element']
+__all__ = ['Element', 'make_checklist']
 __all__ += list({cls.__name__ for cls in Element.__subclasses__()})
 __all__ += list({cls.__name__ for cls in IterableElement.__subclasses__()})
 __all__ += list({cls.__name__ for cls in ContainerElement.__subclasses__()})

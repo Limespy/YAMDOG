@@ -18,8 +18,11 @@ Here's how you can start automatically generating Markdown documents
 
 ## The first steps
 
-
-
+- [x] hmm
+- [ ] 1
+- no
+- Hello
+- [x] a
 ### Install
 
 Install YAMDOG with pip.
@@ -69,7 +72,7 @@ heading = md.Heading(3, 'Example heading')
 
 ~~striken text~~
 
-***~~All styles combined~~***
+~~***All styles combined***~~
 
 ```python
 bold_text = md.Text('bolded text', {'bold'})
@@ -117,293 +120,17 @@ table = md.Table(['First column', 'Second column', 'third column'],
 
 ```markdown
 | First column | Second column | third column |
-|
- 
--
--
--
--
--
--
--
--
--
--
--
-:
- 
-|
- 
-:
--
--
--
--
--
--
--
--
--
--
--
--
- 
-|
- 
-:
--
--
--
--
--
--
--
--
--
--
-:
- 
-|
-|
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-a
- 
-|
- 
-1
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-|
- 
- 
- 
- 
-P
-y
-t
-h
-o
-n
- 
- 
- 
- 
-|
-|
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-b
- 
-|
- 
-2
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-|
- 
- 
- 
-M
-a
-r
-k
-d
-o
-w
-n
- 
- 
- 
-|
+| -----------: | :------------ | :----------: |
+|            a | 1             |    Python    |
+|            b | 2             |   Markdown   |
 ```
 
 *Rendered Result*
 
 | First column | Second column | third column |
-|
- 
--
--
--
--
--
--
--
--
--
--
--
-:
- 
-|
- 
-:
--
--
--
--
--
--
--
--
--
--
--
--
- 
-|
- 
-:
--
--
--
--
--
--
--
--
--
--
-:
- 
-|
-|
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-a
- 
-|
- 
-1
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-|
- 
- 
- 
- 
-P
-y
-t
-h
-o
-n
- 
- 
- 
- 
-|
-|
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-b
- 
-|
- 
-2
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-|
- 
- 
- 
-M
-a
-r
-k
-d
-o
-w
-n
- 
- 
- 
-|
+| -----------: | :------------ | :----------: |
+|            a | 1             |    Python    |
+|            b | 2             |   Markdown   |
 
 ---
 
