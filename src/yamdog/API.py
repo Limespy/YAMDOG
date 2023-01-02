@@ -204,8 +204,6 @@ class Listing(IterableElement):
     def __post_init__(self) -> None:
         if self.listingtype not in listingprefixes:
             raise ValueError(f'{self.listingtype} not in listingprefixes')
-        if isinstance(self.content[0], Listing):
-            raise ValueError(f'First item cannot be sublist')
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         prefixes, prefix_length = listingprefixes[self.listingtype]
