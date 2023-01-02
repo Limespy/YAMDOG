@@ -40,7 +40,7 @@ Markdown is a light and relatively simple markup language.'''
         md.Heading(3, 'Install'),
         f'''Install {name} with pip.
 {name} uses only Python standard library so it has no additional dependencies.''',
-        md.CodeBlock('', f'pip install {pypiname}'),
+        md.CodeBlock(f'pip install {pypiname}'),
         md.Heading(2, 'The notation'),
         'Read the notation'
         ])
@@ -59,7 +59,7 @@ Markdown is a light and relatively simple markup language.'''
                               '')
     doc += '''And here the full source code that wrote this README.
 This can serve as a more advanced example of what this is capable of.'''
-    doc += md.CodeBlock('python', source)
+    doc += md.CodeBlock(source, 'python')
 
     (pathlib.Path(__file__).parent / 'README.md').write_text(str(doc), 'utf8')
 
@@ -69,19 +69,19 @@ def make_examples(source: str) -> md.Document:
     pattern = re.compile('\n    #%% ')
     examples = {}
     for block in pattern.split(source)[1:]:
-        name, rest = block.split('\n', 1)
+        name, rest = block.split('\n', 1) # from the comment
         code = rest.split('\n\n', 1)[0].replace('\n    ', '\n').strip()
-        examples[name.strip()] = md.CodeBlock('python', code)
+        examples[name.strip()] = md.CodeBlock(code, 'python')
 
     def get_example(title: str, element: md.Element) -> md.Document:
         return md.Document([md.Heading(4, title.capitalize()),
-                            'python',
+                            md.Text('Python Source', {'italic'}),
                             examples[title],
-                            'markdown',
-                            md.CodeBlock('markdown', element),
+                            md.Text('Markdown Source', {'italic'}),
+                            md.CodeBlock(element, 'markdown'),
+                            md.Text('Rendered Result', {'italic'}),
                             element,
                             md.HRule()])
-
 
     # Starting the actual doc
     doc = md.Document([
@@ -93,7 +93,7 @@ def make_examples(source: str) -> md.Document:
     document = md.Document()
 
     doc += "Let's start with an empty document"
-    doc += get_example('document', document)
+    doc += examples['document']
 
     #%% adding to document
     # document += 
@@ -104,10 +104,10 @@ def make_examples(source: str) -> md.Document:
     doc += get_example('heading', heading)
 
     #%% stylised
-    bold_text = md.StylisedText('bolded text', {'bold'})
-    italiced_text = md.StylisedText('some italiced text', {'italic'})
-    strikethrough_text = md.StylisedText('striken text', {'strikethrough'})
-    all_together = md.StylisedText('All styles combined',
+    bold_text = md.Text('bolded text', {'bold'})
+    italiced_text = md.Text('some italiced text', {'italic'})
+    strikethrough_text = md.Text('striken text', {'strikethrough'})
+    all_together = md.Text('All styles combined',
                                    {'bold', 'italic', 'strikethrough'})
 
     doc += bold_text
@@ -119,7 +119,7 @@ def make_examples(source: str) -> md.Document:
 
     #%%  paragraph
     paragraph = md.Paragraph(['Example paragraph containing ',
-                              md.StylisedText('bolded text', {'bold'})])
+                              md.Text('bolded text', {'bold'})])
 
     doc += get_example('paragraph', paragraph)
 
@@ -131,22 +131,62 @@ def make_examples(source: str) -> md.Document:
 
     doc += get_example('table', table)
 
+    #%% compact table
+    table = md.Table(['First column', 'Second column', 'third column'],
+                     ['right', 'left', 'center'],
+                     [['a', 1, 'Python'],
+                      ['b', 2, 'Markdown']],
+                     True)
+
+    doc += 'You can select compact mode at the table object creation'
+    doc += get_example('compact table', table)
+
+    #%% table compact attribute
+    table.compact = True
+
+    doc += md.Paragraph(['or later by changing the attribute ',
+                         md.Code('compact')])
+    doc += examples['table compact attribute']
+
     #%% listing
     listing = md.Listing('unordered', 
                          ['Just normal text',
-                          md.StylisedText('some stylised text', {'italic'}),
+                          md.Text('some stylised text', {'italic'}),
                           ('Sublist by using a tuple',
                             md.Listing('ordered',
                                       ['first', 'second']))])
 
     doc += get_example('listing', listing)
 
+
+    #%% link
+    link = md.Link('Link to Markdown Guide', 'https://www.markdownguide.org')
+
+    doc += get_example('link', link)
+
     #%% codeblock
+    codeblock = md.CodeBlock('import yamdog as md\n\ndoc = md.Document()',
+                             'python')
 
-    #%% Link
+    doc += get_example('codeblock', codeblock)
 
+    #%% code
+    code = md.Code('python != markdown')
+
+    doc += get_example('code', code)
 
     #%% Image
+    # image = md.Image()
+
+    #%% address
+    address = md.Address('https://www.markdownguide.org')
+
+    doc += get_example('address', address)
+
+    #%% quote block
+    quoteblock = md.QuoteBlock('Quote block supports\nmultiple lines')
+
+    doc += get_example('quote block', quoteblock)
 
     return doc
 

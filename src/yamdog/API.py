@@ -24,13 +24,7 @@ class Flavour:
 BASIC = Flavour('Basic')
 
 GITHUB = Flavour('GitHub')
-GITLAB = Flavour('GitHub')
-#══════════════════════════════════════════════════════════════════════════════
-def padd(items: Iterable[str], widths: Iterable[int]
-         ) -> Generator[str, None, None]:
-    for item, width in zip(items, widths):
-        item += ((width - len(item))//2) * ' '
-        yield (width - len(item)) * ' ' + item
+GITLAB = Flavour('GitLab')
 #══════════════════════════════════════════════════════════════════════════════
 def collect_iter(items: Iterable) -> tuple[dict, dict]:
     '''Doing ordered set union thing
@@ -42,7 +36,7 @@ def collect_iter(items: Iterable) -> tuple[dict, dict]:
 
     Returns
     -------
-    dict[Link]
+    tuple[dict, dict]
         list of unique items
     '''
     output: tuple[dict[Link, None], dict[Footnote, None]] = ({}, {})
@@ -124,17 +118,18 @@ class Document(IterableElement):
 
         references, footnotes = self._collect()
 
-        # Handling footnotes
-        for index, footnote in enumerate(footnotes, start = 1):
-            footnote._index = index
-        content.append('\n'.join(f'[^{footnote._index}]: {footnote.content}'
-                                 for footnote in footnotes))
+        if footnotes:# Handling footnotes
+            for index, footnote in enumerate(footnotes, start = 1):
+                footnote._index = index
+            content.append('\n'.join(f'[^{footnote._index}]: {footnote.content}'
+                                    for footnote in footnotes))
 
         # Handling references
-        for index, link in enumerate(references, start = 1):
-            link._index = index
-        content.append('\n'.join(f'[{link._index}]: <{link.url}> "{link.title}"'
-                                 for link in references))
+        if references:
+            for index, link in enumerate(references, start = 1):
+                link._index = index
+            content.append('\n'.join(f'[{link._index}]: <{link.url}> "{link.title}"'
+                                    for link in references))
         # # Creating TOC
         # if self.TOC:
         #     headings = [item for item in self.content
@@ -163,7 +158,7 @@ notations = {'bold': '**',
              'superscript': '^',
              'emphasis': '=='}
 @dataclass(slots = True)
-class StylisedText(ContainerElement):
+class Text(ContainerElement):
     '''Stylised text
 
     Parameters
@@ -243,11 +238,15 @@ class Heading(Element):
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class CodeBlock(Element):
-    language: Any
     content: Any
+    language: Any = ''
+    _tics: int = 3
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        return f'```{self.language}\n{self.content}\n```'
+        text = str(self.content)
+        self._tics = (self.content._tics + 1 if isinstance(self.content, CodeBlock)
+                else self._tics)
+        return f'{"`" * self._tics}{self.language}\n{text}\n{"`" * self._tics}'
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class Address(Element):
@@ -256,7 +255,7 @@ class Address(Element):
         return f'<{self.text}>'
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
-class Monospace(Element):
+class Code(Element):
     text: Any
     def __str__(self) -> str:
         return f'`{self.text}`'
@@ -282,6 +281,19 @@ class Link(Element):
             return f'[{self.text}][{self._index}]'
         return f'[{self.text}]({self.url})'
 #══════════════════════════════════════════════════════════════════════════════
+def pad(items: Iterable[str], widths: Iterable[int], alignments: Iterable[str]
+         ) -> Generator[str, None, None]:
+    for alignment, item, width in zip(alignments, items, widths):
+        if alignment == 'left':
+            yield f'{item}{(width - len(item)) * " "}'
+        elif alignment == 'center':
+            item += ((width - len(item))//2) * ' '
+            yield f'{(width - len(item)) * " "}{item}'
+        elif alignment == 'right':
+            yield f'{(width - len(item)) * " "}{item}'
+        else:
+            raise ValueError(f'alignment {alignment} not recognised')
+#══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class Table(IterableElement):
     header: Iterable
@@ -300,65 +312,59 @@ class Table(IterableElement):
         if hasattr(row, '__iter__'):
             self.content.append(row)
         else:
-            raise TypeError(f"'{type(row)}' object is not iterable")
+            raise TypeError(f"'{type(row)}' is not iterable")
     #─────────────────────────────────────────────────────────────────────────
     @staticmethod
     def _str_row_sparse(row: Iterable[str]):
-        return '| ' + ' | '.join(row) + ' |\n'
-    #─────────────────────────────────────────────────────────────────────────
-    @staticmethod
-    def _str_row_compact(row: Iterable[str]):
-        return '|' + '|'.join(row) + '|\n'
+        return '| ' + ' | '.join(row) + ' |'
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         header = [str(item) for item in self.header]
         headerlen = len(header)
-        max_rowlen = headerlen
 
+        max_rowlen = headerlen
         for row in self.content:
             if len(row) > max_rowlen:
                 max_rowlen = len(row)
+
         alignment = self.alignment + ['left'] * (max_rowlen - len(self.alignment))
         if self.compact:
-            output = self._str_row_compact(header) + '|\n'
+            output = ['|'.join(header)]
             # Alignments
             for i, item in enumerate(alignment):
                 if item == 'left':
-                    alignment[i] = ' :-- '
-                    continue
-                if item == 'center':
-                    alignment[i] = ' :-: '
-                    continue
-                if item == 'right':
-                    alignment[i] = ' --: '
-            output += self._str_row_compact(item for item in alignment)
+                    alignment[i] = ':--'
+                elif item == 'center':
+                    alignment[i] = ':-:'
+                elif item == 'right':
+                    alignment[i] = '--:'
+            output.append('|'.join(alignment))
             for row in self.content:
-                output += self._str_row_compact(str(item) for item in row)
-            return output[:-1] # Removing the last \n
+                output.append('|'.join(str(item) for item in row))
+        else:
+            # maximum cell widths
+            max_widths = [max(len(item), 3) for item in header] + (max_rowlen - headerlen) * [3]
+            content = [[str(item) for item in row] for row in self.content]
+            for row in content:
+                for i, item in enumerate(row):
+                    itemlen = len(item)
+                    if itemlen > max_widths[i]:
+                        max_widths[i] = itemlen
 
-        # pretty
-        max_widths = [max(len(item), 3) for item in header] + (max_rowlen - headerlen) * [3]
-        content = [[str(item) for item in row] for row in self.content]
-        for row in content:
-            for i, item in enumerate(row):
-                itemlen = len(item)
-                if itemlen > max_widths[i]:
-                    max_widths[i] = itemlen
-        output = self._str_row_sparse(padd(header, max_widths))
-        # Alignments
-        for i, item in enumerate(alignment):
-            if item == 'left':
-                alignment[i] = ':'+ (max_widths[i] - 1) * '-'
-                continue
-            if item == 'center':
-                alignment[i] = ':'+ (max_widths[i] - 2) * '-' + ':'
-                continue
-            if item == 'right':
-                alignment[i] = (max_widths[i] - 1) * '-' + ':'
-        output += self._str_row_sparse(item for item in alignment)
-        for row in content:
-            output += self._str_row_sparse(padd(row, max_widths))
-        return output[:-1]
+            output = [self._str_row_sparse(pad(header, max_widths, alignment))]
+            # Alignments and paddings
+            alignment_row = []
+            for item, width in zip(alignment, max_widths):
+                if item == 'left':
+                    alignment_row.append(':'+ (width - 1) * '-')
+                elif item == 'center':
+                    alignment_row.append(':'+ (width - 2) * '-' + ':')
+                elif item == 'right':
+                    alignment_row.append((width - 1) * '-' + ':')
+            output += self._str_row_sparse(item for item in alignment_row)
+            for row in content:
+                output += self._str_row_sparse(pad(row, max_widths, alignment))
+        return '\n'.join(output)
 #══════════════════════════════════════════════════════════════════════════════
 # EXTENDED ELEMENTS
 
@@ -381,7 +387,7 @@ class Footnote(Element):
 
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
-class InlineMath(Element):
+class Math(Element):
     text: Any
     flavour: Flavour = GITHUB
     def __str__(self) -> str:
