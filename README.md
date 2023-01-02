@@ -18,11 +18,6 @@ Here's how you can start automatically generating Markdown documents
 
 ## The first steps
 
-- [x] hmm
-- [ ] 1
-- no
-- Hello
-- [x] a
 ### Install
 
 Install YAMDOG with pip.
