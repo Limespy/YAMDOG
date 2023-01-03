@@ -193,9 +193,9 @@ class Text(ContainerElement):
             text = f'{marker}{text}{marker}'
         return text
 #══════════════════════════════════════════════════════════════════════════════
-listingprefixes = {'unordered': (itertools.repeat('- '), 2),
-                   'ordered': ((f'{n}. ' for n in itertools.count(start = 1, step = 1)), 3),
-                   'definition': (itertools.repeat(': '), 2)}
+listingprefixes = {'unordered': (lambda : itertools.repeat('- '), 2),
+                   'ordered': (lambda : (f'{n}. ' for n in itertools.count(start = 1, step = 1)), 3),
+                   'definition': (lambda : itertools.repeat(': '), 2)}
 @dataclass(slots = True)
 class Listing(IterableElement):
     listingtype: str
@@ -208,7 +208,7 @@ class Listing(IterableElement):
     def __str__(self) -> str:
         prefixes, prefix_length = listingprefixes[self.listingtype]
         output = []
-        for item, prefix in zip(self.content, prefixes):
+        for item, prefix in zip(self.content, prefixes()):
             if isinstance(item, tuple):
                 output.append(prefix + str(item[0]))
                 output.append(INDENT + str(item[1]).replace('\n', '\n'+ INDENT))

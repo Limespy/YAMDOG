@@ -82,7 +82,7 @@ heading = md.Heading(3, 'Example heading')
 
 ~~striken text~~
 
-*~~**All styles combined**~~*
+**~~*All styles combined*~~**
 
 ```python
 bold_text = md.Text('bolded text', {'bold'})
@@ -201,8 +201,8 @@ listing = md.Listing('unordered',
 - Just normal text
 - *some stylised text*
 - Sublist by using a tuple
-    3. first
-    4. second
+    1. first
+    2. second
 ```
 
 *Rendered result*
@@ -210,8 +210,8 @@ listing = md.Listing('unordered',
 - Just normal text
 - *some stylised text*
 - Sublist by using a tuple
-    5. first
-    6. second
+    1. first
+    2. second
 
 ---
 
@@ -370,8 +370,8 @@ Example paragraph containing **bolded text**
 - Just normal text
 - *some stylised text*
 - Sublist by using a tuple
-    7. first
-    8. second
+    1. first
+    2. second
 ```
 
 *Rendered result*
@@ -385,8 +385,8 @@ Example paragraph containing **bolded text**
 - Just normal text
 - *some stylised text*
 - Sublist by using a tuple
-    9. first
-    10. second
+    1. first
+    2. second
 
 ---
 
