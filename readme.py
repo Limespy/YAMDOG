@@ -41,8 +41,16 @@ Markdown is a light and relatively simple markup language.'''
         f'''Install {name} with pip.
 {name} uses only Python standard library so it has no additional dependencies.''',
         md.CodeBlock(f'pip install {pypiname}'),
-        md.Heading(2, 'The notation'),
-        'Read the notation'
+        md.Heading(2, 'Using the package'),
+        f'There are two main things to building a Markdown document using {name}',
+        md.Listing('ordered', ['Making elements',
+                               'Combining elements into a document']),
+        md.Paragraph(['You can call ',
+            md.Code('str'),
+            ' on the element directly to get the markdown source']),
+        md.CodeBlock('markdown_source = str(element)', 'python'),
+        'but most of the time you will compose the elements together into an document',
+        md.CodeBlock('markdown_source = str(document)', 'python')
         ])
 
     # EXAMPLES
@@ -57,6 +65,9 @@ Markdown is a light and relatively simple markup language.'''
     ext_syntax_link = md.Link('extended syntax',
                               'https://www.markdownguide.org/basic-syntax/',
                               '')
+    doc += md.HRule()
+    doc += md.Heading(2, 'Annexes')
+    doc += md.Heading(3, 'Annex 1, README Python source')
     doc += '''And here the full source code that wrote this README.
 This can serve as a more advanced example of what this is capable of.'''
     doc += md.CodeBlock(source, 'python')
@@ -75,18 +86,18 @@ def make_examples(source: str) -> md.Document:
 
     def get_example(title: str, element: md.Element) -> md.Document:
         return md.Document([md.Heading(4, title.capitalize()),
-                            md.Text('Python Source', {'italic'}),
+                            md.Text('Python source', {'italic'}),
                             examples[title],
-                            md.Text('Markdown Source', {'italic'}),
+                            md.Text('Markdown source', {'italic'}),
                             md.CodeBlock(element, 'markdown'),
-                            md.Text('Rendered Result', {'italic'}),
+                            md.Text('Rendered result', {'italic'}),
                             element,
                             md.HRule()])
 
     # Starting the actual doc
     doc = md.Document([
-        md.Heading(3, 'Examples'),
-        'Here examples of what each element does.'
+        md.Heading(3, 'Making elements'),
+
     ])
 
     #%% document
@@ -187,6 +198,43 @@ def make_examples(source: str) -> md.Document:
     quoteblock = md.QuoteBlock('Quote block supports\nmultiple lines')
 
     doc += get_example('quote block', quoteblock)
+
+    doc += md.Heading(3, 'Combining elements into a document')
+
+    #%% calling document
+    document = md.Document([heading, link, paragraph, listing])
+
+    doc += 'Initialising Document with list of elements'
+    doc += examples['calling document']
+
+    #%% from empty document
+    document = md.Document()
+    document += heading
+    document += link
+    document += paragraph
+    document += listing
+
+    doc += 'adding elements into a document'
+    doc += examples['from empty document']
+
+    #%% document by adding
+    document = heading + link + paragraph + listing
+
+    doc += 'adding elements together into a document'
+    doc += examples['document by adding']
+
+    #%% document concatenation
+    document1 = md.Document([heading, link])
+    document2 = md.Document([paragraph, listing])
+    document = document1 + document2
+
+    doc += 'Adding two documents together'
+    doc += examples['document concatenation']
+
+    doc += md.Text('Markdown source', {'italic'})
+    doc += md.CodeBlock(document, 'markdown')
+    doc += md.Text('Rendered result', {'italic'})
+    doc += document
 
     return doc
 

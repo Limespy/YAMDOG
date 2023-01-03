@@ -18,11 +18,8 @@ Here's how you can start automatically generating Markdown documents
 
 ## The first steps
 
-- [x] hmm
-- [ ] 1
-- no
-- Hello
-- [x] a
+
+
 ### Install
 
 Install YAMDOG with pip.
@@ -32,13 +29,26 @@ YAMDOG uses only Python standard library so it has no additional dependencies.
 pip install yamdog
 ```
 
-## The notation
+## Using the package
 
-Read the notation
+There are two main things to building a Markdown document using YAMDOG
 
-### Examples
+1. Making elements
+2. Combining elements into a document
 
-Here examples of what each element does.
+You can call `str` on the element directly to get the markdown source
+
+```python
+markdown_source = str(element)
+```
+
+but most of the time you will compose the elements together into an document
+
+```python
+markdown_source = str(document)
+```
+
+### Making elements
 
 Let's start with an empty document
 
@@ -48,19 +58,19 @@ document = md.Document()
 
 #### Heading
 
-*Python Source*
+*Python source*
 
 ```python
 heading = md.Heading(3, 'Example heading')
 ```
 
-*Markdown Source*
+*Markdown source*
 
 ```markdown
 ### Example heading
 ```
 
-*Rendered Result*
+*Rendered result*
 
 ### Example heading
 
@@ -72,7 +82,7 @@ heading = md.Heading(3, 'Example heading')
 
 ~~striken text~~
 
-~~***All styles combined***~~
+*~~**All styles combined**~~*
 
 ```python
 bold_text = md.Text('bolded text', {'bold'})
@@ -86,20 +96,20 @@ all_together = md.Text('All styles combined',
 
 #### Paragraph
 
-*Python Source*
+*Python source*
 
 ```python
 paragraph = md.Paragraph(['Example paragraph containing ',
                           md.Text('bolded text', {'bold'})])
 ```
 
-*Markdown Source*
+*Markdown source*
 
 ```markdown
 Example paragraph containing **bolded text**
 ```
 
-*Rendered Result*
+*Rendered result*
 
 Example paragraph containing **bolded text**
 
@@ -107,7 +117,7 @@ Example paragraph containing **bolded text**
 
 #### Table
 
-*Python Source*
+*Python source*
 
 ```python
 table = md.Table(['First column', 'Second column', 'third column'],
@@ -116,7 +126,7 @@ table = md.Table(['First column', 'Second column', 'third column'],
                   ['b', 2, 'Markdown']])
 ```
 
-*Markdown Source*
+*Markdown source*
 
 ```markdown
 | First column | Second column | third column |
@@ -125,7 +135,7 @@ table = md.Table(['First column', 'Second column', 'third column'],
 |            b | 2             |   Markdown   |
 ```
 
-*Rendered Result*
+*Rendered result*
 
 | First column | Second column | third column |
 | -----------: | :------------ | :----------: |
@@ -138,7 +148,7 @@ You can select compact mode at the table object creation
 
 #### Compact table
 
-*Python Source*
+*Python source*
 
 ```python
 table = md.Table(['First column', 'Second column', 'third column'],
@@ -148,7 +158,7 @@ table = md.Table(['First column', 'Second column', 'third column'],
                  True)
 ```
 
-*Markdown Source*
+*Markdown source*
 
 ```markdown
 First column|Second column|third column
@@ -157,7 +167,7 @@ a|1|Python
 b|2|Markdown
 ```
 
-*Rendered Result*
+*Rendered result*
 
 First column|Second column|third column
 --:|:--|:-:
@@ -174,7 +184,7 @@ table.compact = True
 
 #### Listing
 
-*Python Source*
+*Python source*
 
 ```python
 listing = md.Listing('unordered', 
@@ -185,41 +195,41 @@ listing = md.Listing('unordered',
                                   ['first', 'second']))])
 ```
 
-*Markdown Source*
+*Markdown source*
 
 ```markdown
-- Just normal text
-- *some stylised text*
-- Sublist by using a tuple
-    1. first
-    2. second
-```
-
-*Rendered Result*
-
 - Just normal text
 - *some stylised text*
 - Sublist by using a tuple
     3. first
     4. second
+```
+
+*Rendered result*
+
+- Just normal text
+- *some stylised text*
+- Sublist by using a tuple
+    5. first
+    6. second
 
 ---
 
 #### Link
 
-*Python Source*
+*Python source*
 
 ```python
 link = md.Link('Link to Markdown Guide', 'https://www.markdownguide.org')
 ```
 
-*Markdown Source*
+*Markdown source*
 
 ```markdown
 [Link to Markdown Guide](https://www.markdownguide.org)
 ```
 
-*Rendered Result*
+*Rendered result*
 
 [Link to Markdown Guide](https://www.markdownguide.org)
 
@@ -227,14 +237,14 @@ link = md.Link('Link to Markdown Guide', 'https://www.markdownguide.org')
 
 #### Codeblock
 
-*Python Source*
+*Python source*
 
 ```python
 codeblock = md.CodeBlock('import yamdog as md\n\ndoc = md.Document()',
                          'python')
 ```
 
-*Markdown Source*
+*Markdown source*
 
 ````markdown
 ```python
@@ -244,7 +254,7 @@ doc = md.Document()
 ```
 ````
 
-*Rendered Result*
+*Rendered result*
 
 ```python
 import yamdog as md
@@ -256,19 +266,19 @@ doc = md.Document()
 
 #### Code
 
-*Python Source*
+*Python source*
 
 ```python
 code = md.Code('python != markdown')
 ```
 
-*Markdown Source*
+*Markdown source*
 
 ```markdown
 `python != markdown`
 ```
 
-*Rendered Result*
+*Rendered result*
 
 `python != markdown`
 
@@ -276,19 +286,19 @@ code = md.Code('python != markdown')
 
 #### Address
 
-*Python Source*
+*Python source*
 
 ```python
 address = md.Address('https://www.markdownguide.org')
 ```
 
-*Markdown Source*
+*Markdown source*
 
 ```markdown
 <https://www.markdownguide.org>
 ```
 
-*Rendered Result*
+*Rendered result*
 
 <https://www.markdownguide.org>
 
@@ -296,25 +306,93 @@ address = md.Address('https://www.markdownguide.org')
 
 #### Quote block
 
-*Python Source*
+*Python source*
 
 ```python
 quoteblock = md.QuoteBlock('Quote block supports\nmultiple lines')
 ```
 
-*Markdown Source*
+*Markdown source*
 
 ```markdown
 > Quote block supports
 > multiple lines
 ```
 
-*Rendered Result*
+*Rendered result*
 
 > Quote block supports
 > multiple lines
 
 ---
+
+### Combining elements into a document
+
+Initialising Document with list of elements
+
+```python
+document = md.Document([heading, link, paragraph, listing])
+```
+
+adding elements into a document
+
+```python
+document = md.Document()
+document += heading
+document += link
+document += paragraph
+document += listing
+```
+
+adding elements together into a document
+
+```python
+document = heading + link + paragraph + listing
+```
+
+Adding two documents together
+
+```python
+document1 = md.Document([heading, link])
+document2 = md.Document([paragraph, listing])
+document = document1 + document2
+```
+
+*Markdown source*
+
+```markdown
+### Example heading
+
+[Link to Markdown Guide](https://www.markdownguide.org)
+
+Example paragraph containing **bolded text**
+
+- Just normal text
+- *some stylised text*
+- Sublist by using a tuple
+    7. first
+    8. second
+```
+
+*Rendered result*
+
+### Example heading
+
+[Link to Markdown Guide](https://www.markdownguide.org)
+
+Example paragraph containing **bolded text**
+
+- Just normal text
+- *some stylised text*
+- Sublist by using a tuple
+    9. first
+    10. second
+
+---
+
+## Annexes
+
+### Annex 1, README Python source
 
 And here the full source code that wrote this README.
 This can serve as a more advanced example of what this is capable of.
@@ -363,8 +441,16 @@ Markdown is a light and relatively simple markup language.'''
         f'''Install {name} with pip.
 {name} uses only Python standard library so it has no additional dependencies.''',
         md.CodeBlock(f'pip install {pypiname}'),
-        md.Heading(2, 'The notation'),
-        'Read the notation'
+        md.Heading(2, 'Using the package'),
+        f'There are two main things to building a Markdown document using {name}',
+        md.Listing('ordered', ['Making elements',
+                               'Combining elements into a document']),
+        md.Paragraph(['You can call ',
+            md.Code('str'),
+            ' on the element directly to get the markdown source']),
+        md.CodeBlock('markdown_source = str(element)', 'python'),
+        'but most of the time you will compose the elements together into an document',
+        md.CodeBlock('markdown_source = str(document)', 'python')
         ])
 
     # EXAMPLES
@@ -379,6 +465,9 @@ Markdown is a light and relatively simple markup language.'''
     ext_syntax_link = md.Link('extended syntax',
                               'https://www.markdownguide.org/basic-syntax/',
                               '')
+    doc += md.HRule()
+    doc += md.Heading(2, 'Annexes')
+    doc += md.Heading(3, 'Annex 1, README Python source')
     doc += '''And here the full source code that wrote this README.
 This can serve as a more advanced example of what this is capable of.'''
     doc += md.CodeBlock(source, 'python')
@@ -397,18 +486,18 @@ def make_examples(source: str) -> md.Document:
 
     def get_example(title: str, element: md.Element) -> md.Document:
         return md.Document([md.Heading(4, title.capitalize()),
-                            md.Text('Python Source', {'italic'}),
+                            md.Text('Python source', {'italic'}),
                             examples[title],
-                            md.Text('Markdown Source', {'italic'}),
+                            md.Text('Markdown source', {'italic'}),
                             md.CodeBlock(element, 'markdown'),
-                            md.Text('Rendered Result', {'italic'}),
+                            md.Text('Rendered result', {'italic'}),
                             element,
                             md.HRule()])
 
     # Starting the actual doc
     doc = md.Document([
-        md.Heading(3, 'Examples'),
-        'Here examples of what each element does.'
+        md.Heading(3, 'Making elements'),
+
     ])
 
     #%% document
@@ -509,6 +598,43 @@ def make_examples(source: str) -> md.Document:
     quoteblock = md.QuoteBlock('Quote block supports\nmultiple lines')
 
     doc += get_example('quote block', quoteblock)
+
+    doc += md.Heading(3, 'Combining elements into a document')
+
+    #%% calling document
+    document = md.Document([heading, link, paragraph, listing])
+
+    doc += 'Initialising Document with list of elements'
+    doc += examples['calling document']
+
+    #%% from empty document
+    document = md.Document()
+    document += heading
+    document += link
+    document += paragraph
+    document += listing
+
+    doc += 'adding elements into a document'
+    doc += examples['from empty document']
+
+    #%% document by adding
+    document = heading + link + paragraph + listing
+
+    doc += 'adding elements together into a document'
+    doc += examples['document by adding']
+
+    #%% document concatenation
+    document1 = md.Document([heading, link])
+    document2 = md.Document([paragraph, listing])
+    document = document1 + document2
+
+    doc += 'Adding two documents together'
+    doc += examples['document concatenation']
+
+    doc += md.Text('Markdown source', {'italic'})
+    doc += md.CodeBlock(document, 'markdown')
+    doc += md.Text('Rendered result', {'italic'})
+    doc += document
 
     return doc
 
