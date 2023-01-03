@@ -73,6 +73,10 @@ class IterableElement(Element):
     def __iter__(self):
         return iter(self.content)   # type: ignore
 #══════════════════════════════════════════════════════════════════════════════
+@dataclass
+class InlineElement(Element):
+    pass
+#══════════════════════════════════════════════════════════════════════════════
 # BASIC ELEMENTS
 #══════════════════════════════════════════════════════════════════════════════
 # def parse_headings(headings):
@@ -150,15 +154,22 @@ class Paragraph(IterableElement):
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return self.separator.join(str(item) for item in self.content)
+    #─────────────────────────────────────────────────────────────────────────
+    def __iadd__(self, other):
+        if isinstance(other, InlineElement):
+            self.content.append(other)
+            return self
+        else:
+            raise NotImplementedError('')
 #══════════════════════════════════════════════════════════════════════════════
 notations = {'bold': '**',
              'italic': '*',
              'strikethrough': '~~',
              'subscript': '~',
              'superscript': '^',
-             'emphasis': '=='}
+             'highlight': '=='}
 @dataclass(slots = True)
-class Text(ContainerElement):
+class Text(ContainerElement, InlineElement):
     '''Stylised text
 
     Parameters
@@ -174,7 +185,7 @@ class Text(ContainerElement):
         for invalid style attributes
     '''
     content: Any
-    style: Iterable[str] = field(default_factory = set)
+    style: set[str] = field(default_factory = set)
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self):
         if not isinstance(self.style, set):
@@ -192,24 +203,76 @@ class Text(ContainerElement):
             marker = notations[substyle]
             text = f'{marker}{text}{marker}'
         return text
+    #─────────────────────────────────────────────────────────────────────────
+    def bold(self):
+        self.style |= 'bold'
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def unbold(self):
+        self.style.discard('bold')
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def italicize(self):
+        self.style |= 'italic'
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def unitalicize(self):
+        self.style.discard('italic')
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def strike(self):
+        self.style |= 'strikethrough'
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def unstrike(self):
+        self.style.discard('strikethrough')
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def superscipt(self):
+        self.style.discard('subscript')
+        self.style |= 'superscript'
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def unsuperscribe(self):
+        self.style.discard('superscript')
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def subscribe(self):
+        self.style.discard('superscript')
+        self.style |= 'subscript'
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def unsubscript(self):
+        self.style.discard('subscript')
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def highlight(self):
+        self.style |= 'highlight'
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def unhighlight(self):
+        self.style.discard('highlight')
+        return self
 #══════════════════════════════════════════════════════════════════════════════
-listingprefixes = {'unordered': (lambda : itertools.repeat('- '), 2),
-                   'ordered': (lambda : (f'{n}. ' for n in itertools.count(start = 1, step = 1)), 3),
-                   'definition': (lambda : itertools.repeat(': '), 2)}
+markers = {'unordered': (lambda : itertools.repeat('- '), 2),
+           'ordered': (lambda : (f'{n}. ' for n in itertools.count(1, 1)), 3),
+           'definition': (lambda : itertools.repeat(': '), 2)}
 @dataclass(slots = True)
 class Listing(IterableElement):
     listingtype: str
     content: Iterable
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self) -> None:
-        if self.listingtype not in listingprefixes:
-            raise ValueError(f'{self.listingtype} not in listingprefixes')
+        if self.listingtype not in markers:
+            raise ValueError(f'{self.listingtype} not in markers')
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        prefixes, prefix_length = listingprefixes[self.listingtype]
+        prefixes, prefix_length = markers[self.listingtype]
         output = []
         for item, prefix in zip(self.content, prefixes()):
-            if isinstance(item, tuple):
+            if (isinstance(item, tuple)
+                and len(item) == 2
+                and isinstance(item[1], Listing)):
                 output.append(prefix + str(item[0]))
                 output.append(INDENT + str(item[1]).replace('\n', '\n'+ INDENT))
             else:
@@ -259,7 +322,7 @@ class Heading(Element):
             return ''.join((self.level * "#", ' ', text, toccomment))
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
-class CodeBlock(Element):
+class CodeBlock(InlineElement):
     content: Any
     language: Any = ''
     _tics: int = 3
@@ -271,19 +334,19 @@ class CodeBlock(Element):
         return f'{"`" * self._tics}{self.language}\n{text}\n{"`" * self._tics}'
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
-class Address(Element):
+class Address(InlineElement):
     text: Any
     def __str__(self) -> str:
         return f'<{self.text}>'
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
-class Code(Element):
+class Code(InlineElement):
     text: Any
     def __str__(self) -> str:
         return f'`{self.text}`'
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
-class Link(Element):
+class Link(InlineElement):
     """Do not change `_index` or `_hash`"""
     text: Any
     url: Any
@@ -393,7 +456,7 @@ class Table(IterableElement):
 
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
-class Footnote(Element):
+class Footnote(InlineElement):
     """Do not change `_index`"""
     content: Any
     _index: int = 0 # TODO something with `field` to prevent assignment at init
@@ -409,7 +472,7 @@ class Footnote(Element):
 
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
-class Math(Element):
+class Math(InlineElement):
     text: Any
     flavour: Flavour = GITHUB
     def __str__(self) -> str:
@@ -451,7 +514,7 @@ class Image(Element):
         return f'![{self.alt_text}]({self.path})'
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
-class Emoji(Element):
+class Emoji(InlineElement):
     """https://www.webfx.com/tools/emoji-cheat-sheet/"""
     code: Any
     def __str__(self) -> str:
