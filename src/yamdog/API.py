@@ -4,11 +4,12 @@
 from dataclasses import dataclass, field
 from abc import abstractmethod, ABC
 
+
+from collections.abc import Sequence
+from collections import defaultdict
 import itertools
 import pathlib
-
-import enum
-from collections.abc import Sequence
+import string
 from typing import Union as U
 from typing import Any, Generator, Iterable, Optional
 
@@ -17,8 +18,12 @@ from typing import Any, Generator, Iterable, Optional
 # AUXILIARIES
 INDENT = '    '
 
+LEFT = 1
+CENTER = 2
+RIGHT = 3
+
 @dataclass(frozen = True, slots = True)
-class Flavour:
+class Flavour(set):
     name: str
 
 BASIC = Flavour('Basic')
@@ -78,18 +83,26 @@ class InlineElement(Element):
     pass
 #══════════════════════════════════════════════════════════════════════════════
 # BASIC ELEMENTS
+dataclass(slots = True)
+class TOC(Element):
+    level: int = 4
+    _text: str = ''
+    #─────────────────────────────────────────────────────────────────────────
+    def __str__(self) -> str:
+        return self._text
 #══════════════════════════════════════════════════════════════════════════════
-# def parse_headings(headings):
-#     for heading in headings:
-#         text = str(heading.text).strip()
-#         (heading.level, Link(text, f'#{text}'))
-
+def _translate(text, *args):
+    return str(text).translate(''.maketrans(*args))
+#══════════════════════════════════════════════════════════════════════════════
+def _header_ref_texts(text: str) -> str:
+    return (_translate(text, '', '', '[]'),
+            '#' + _translate(text, ' ', '-', string.punctuation).lower())
+#══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class Document(IterableElement):
     content: list = field(default_factory = list) # attribute name important
     header_text: Any = None
     header_language: Any = None
-    # TOC: bool = True
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self)  -> None:
         if (self.header_text is None) ^ (self.header_language is None):
@@ -134,10 +147,41 @@ class Document(IterableElement):
                 link._index = index
             content.append('\n'.join(f'[{link._index}]: <{link.url}> "{link.title}"'
                                     for link in references))
-        # # Creating TOC
-        # if self.TOC:
-        #     headings = [item for item in self.content
-        #                 if isinstance(item, Heading) and item.include_in_TOC]
+        # Creating TOC
+        headings = []
+        TOCs: dict[int, list[TOC]] = defaultdict(list)
+        top_level = 9
+        for item in self.content:
+            if isinstance(item, Heading) and item.in_TOC:
+                headings.append(item)
+                if item.level < top_level:
+                    top_level = item.level
+            elif isinstance(item, TOC):
+                TOCs[item.level] += [item]
+
+        if TOCs and headings:
+            refs: dict[str, int] = {}
+            TOCtexts: dict[int, list[str]] = defaultdict(list)
+            for heading in headings:
+                text, ref = _header_ref_texts(heading.text)
+
+                if ref in refs: # Handling multiple same refs
+                    refs[ref] += 1
+                    ref += str(refs[ref]) 
+                else:
+                    refs[ref] = 0
+
+                line = '- '.join(((heading.level - top_level) * INDENT,
+                                  f'[{text}]({ref})'))
+
+                for level in TOCs:
+                    if heading.level <= level:
+                        TOCtexts[level] += [line]
+
+            for level, toclist in TOCs.items():
+                text = '\n'.join(TOCtexts[level])
+                for toc in toclist:
+                    toc._text = text
 
         return '\n\n'.join(str(item) for item in content)
     #─────────────────────────────────────────────────────────────────────────
@@ -369,12 +413,12 @@ class Link(InlineElement):
 def pad(items: Iterable[str], widths: Iterable[int], alignments: Iterable[str]
          ) -> Generator[str, None, None]:
     for alignment, item, width in zip(alignments, items, widths):
-        if alignment == 'left':
+        if alignment == LEFT:
             yield f'{item}{(width - len(item)) * " "}'
-        elif alignment == 'center':
+        elif alignment == CENTER:
             item += ((width - len(item))//2) * ' '
             yield f'{(width - len(item)) * " "}{item}'
-        elif alignment == 'right':
+        elif alignment == RIGHT:
             yield f'{(width - len(item)) * " "}{item}'
         else:
             raise ValueError(f'alignment {alignment} not recognised')
@@ -382,8 +426,8 @@ def pad(items: Iterable[str], widths: Iterable[int], alignments: Iterable[str]
 @dataclass(slots = True)
 class Table(IterableElement):
     header: Iterable
-    alignment: list[str]
     content: list[Sequence] = field(default_factory = list)
+    alignment: list[int] = field(default_factory = list)
     compact: bool = False
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
@@ -412,16 +456,16 @@ class Table(IterableElement):
             if len(row) > max_rowlen:
                 max_rowlen = len(row)
 
-        alignment = self.alignment + ['left'] * (max_rowlen - len(self.alignment))
+        alignment = self.alignment + [LEFT] * (max_rowlen - len(self.alignment))
         if self.compact:
             output = ['|'.join(header)]
             # Alignments
             for i, item in enumerate(alignment):
-                if item == 'left':
+                if item == LEFT:
                     alignment[i] = ':--'
-                elif item == 'center':
+                elif item == CENTER:
                     alignment[i] = ':-:'
-                elif item == 'right':
+                elif item == RIGHT:
                     alignment[i] = '--:'
             output.append('|'.join(alignment))
             for row in self.content:
@@ -440,11 +484,11 @@ class Table(IterableElement):
             # Alignments and paddings
             alignment_row = []
             for item, width in zip(alignment, max_widths):
-                if item == 'left':
+                if item == LEFT:
                     alignment_row.append(':'+ (width - 1) * '-')
-                elif item == 'center':
+                elif item == CENTER:
                     alignment_row.append(':'+ (width - 2) * '-' + ':')
-                elif item == 'right':
+                elif item == RIGHT:
                     alignment_row.append((width - 1) * '-' + ':')
             output.append(self._str_row_sparse(item for item in alignment_row))
             for row in content:
@@ -519,8 +563,10 @@ class Emoji(InlineElement):
     code: Any
     def __str__(self) -> str:
         return f':{self.code}:'
-
-__all__ = ['Element', 'make_checklist']
-__all__ += list({cls.__name__ for cls in Element.__subclasses__()})
-__all__ += list({cls.__name__ for cls in IterableElement.__subclasses__()})
-__all__ += list({cls.__name__ for cls in ContainerElement.__subclasses__()})
+#══════════════════════════════════════════════════════════════════════════════
+__all__ = {'Element', 'make_checklist', 'TOC', 'LEFT', 'RIGHT', 'CENTER'}
+__all__ |= {cls.__name__ for cls in Element.__subclasses__()}
+__all__ |= {cls.__name__ for cls in IterableElement.__subclasses__()}
+__all__ |= {cls.__name__ for cls in ContainerElement.__subclasses__()}
+__all__ |= {cls.__name__ for cls in InlineElement.__subclasses__()}
+__all__ = list(__all__)

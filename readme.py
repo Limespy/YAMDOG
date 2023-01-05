@@ -27,11 +27,13 @@ def main():
         md.Heading(1, f'Overview of {name}', False, False),
         md.Paragraph(pypi_badges, '\n'),
         'Yet Another Markdown Only Generator',
-        md.Heading(2, f'What is {name}?'),
+        md.Heading(2, f'What is {name}?', False, False),
         f'''{name} is toolkit for creating Markdown text using Python.
-Markdown is a light and relatively simple markup language.'''
+Markdown is a light and relatively simple markup language.''',
+        md.TOC()
         ]
     )
+
     quick_start_guide = md.Document([
         md.Heading(1, 'Quick start guide'),
         "Here's how you can start automatically generating Markdown documents",
@@ -66,10 +68,11 @@ Markdown is a light and relatively simple markup language.'''
                               'https://www.markdownguide.org/basic-syntax/',
                               '')
     doc += md.HRule()
-    doc += md.Heading(2, 'Annexes')
-    doc += md.Heading(3, 'Annex 1, README Python source')
+    doc += md.Heading(1, 'Annexes')
+    doc += md.Heading(2, 'Annex 1: README Python source')
     doc += '''And here the full source code that wrote this README.
 This can serve as a more advanced example of what this is capable of.'''
+    doc += md.Link('The python file can also be found here', 'https://github.com/Limespy/YAMDOG/blob/main/readme.py')
     doc += md.CodeBlock(source, 'python')
 
     (pathlib.Path(__file__).parent / 'README.md').write_text(str(doc), 'utf8')
@@ -135,18 +138,18 @@ def make_examples(source: str) -> md.Document:
     doc += get_example('paragraph', paragraph)
 
     #%% table
-    table = md.Table(['First column', 'Second column', 'third column'],
-                     ['right', 'left', 'center'],
+    table = md.Table(['First column', 'Second column', 'Third column'],
                      [['a', 1, 'Python'],
-                      ['b', 2, 'Markdown']])
+                      ['b', 2, 'Markdown']],
+                     [md.RIGHT, md.LEFT, md.CENTER])
 
     doc += get_example('table', table)
 
     #%% compact table
-    table = md.Table(['First column', 'Second column', 'third column'],
-                     ['right', 'left', 'center'],
+    table = md.Table(['First column', 'Second column', 'Third column'],
                      [['a', 1, 'Python'],
                       ['b', 2, 'Markdown']],
+                     [md.RIGHT, md.LEFT, md.CENTER],
                      True)
 
     doc += 'You can select compact mode at the table object creation'
