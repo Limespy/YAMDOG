@@ -1,3 +1,7 @@
+---
+test
+---
+
 # Overview of YAMDOG <!-- omit in toc -->
 
 [![PyPI Package latest release](https://img.shields.io/pypi/v/yamdog.svg)][1]
@@ -9,8 +13,7 @@ Yet Another Markdown Only Generator
 
 ## What is YAMDOG? <!-- omit in toc -->
 
-YAMDOG is toolkit for creating Markdown text using Python.
-Markdown is a light and relatively simple markup language.
+YAMDOG is toolkit for creating Markdown text using Python. Markdown is a light and relatively simple markup language.
 
 - [Quick start guide](#quick-start-guide)
     - [The first steps](#the-first-steps)
@@ -43,8 +46,7 @@ Here's how you can start automatically generating Markdown documents
 
 ### Install
 
-Install YAMDOG with pip.
-YAMDOG uses only Python standard library so it has no additional dependencies.
+Install YAMDOG with pip. YAMDOG uses only Python standard library so it has no additional dependencies.
 
 ```
 pip install yamdog
@@ -57,7 +59,7 @@ There are two main things to building a Markdown document using YAMDOG
 1. Making elements
 2. Combining elements into a document
 
-You can call `str` on the element directly to get the markdown source
+You can call`str`on the element directly to get the markdown source
 
 ```python
 markdown_source = str(element)
@@ -103,14 +105,14 @@ heading = md.Heading(3, 'Example heading')
 
 ~~striken text~~
 
-***~~All styles combined~~***
+~~***All styles combined***~~
 
 ```python
-bold_text = md.Text('bolded text', {'bold'})
-italiced_text = md.Text('some italiced text', {'italic'})
-strikethrough_text = md.Text('striken text', {'strikethrough'})
+bold_text = md.Text('bolded text', {md.BOLD})
+italiced_text = md.Text('some italiced text', {md.ITALIC})
+strikethrough_text = md.Text('striken text', {md.STRIKETHROUGH})
 all_together = md.Text('All styles combined',
-                               {'bold', 'italic', 'strikethrough'})
+                               {md.BOLD, md.ITALIC, md.STRIKETHROUGH})
 ```
 
 ---
@@ -121,18 +123,18 @@ all_together = md.Text('All styles combined',
 
 ```python
 paragraph = md.Paragraph(['Example paragraph containing ',
-                          md.Text('bolded text', {'bold'})])
+                          md.Text('bolded text', {md.BOLD})])
 ```
 
 *Markdown source*
 
 ```markdown
-Example paragraph containing **bolded text**
+Example paragraph containing**bolded text**
 ```
 
 *Rendered result*
 
-Example paragraph containing **bolded text**
+Example paragraph containing**bolded text**
 
 ---
 
@@ -197,7 +199,7 @@ b|2|Markdown
 
 ---
 
-or later by changing the attribute `compact`
+or later by changing the attribute`compact`
 
 ```python
 table.compact = True
@@ -208,11 +210,13 @@ table.compact = True
 *Python source*
 
 ```python
-listing = md.Listing('unordered', 
+listing = md.Listing(md.UNORDERED, 
                      ['Just normal text',
-                      md.Text('some stylised text', {'italic'}),
+                      md.Text('some stylised text', {md.ITALIC}),
+                      md.Checkbox(False, 'Listings can include checkboxes'),
+                      md.Checkbox(True, 'Checked and unchecked option available'),
                       ('Sublist by using a tuple',
-                        md.Listing('ordered',
+                        md.Listing(md.ORDERED,
                                   ['first', 'second']))])
 ```
 
@@ -221,6 +225,8 @@ listing = md.Listing('unordered',
 ```markdown
 - Just normal text
 - *some stylised text*
+- [ ] Listings can include checkboxes
+- [x] Checked and unchecked option available
 - Sublist by using a tuple
     1. first
     2. second
@@ -230,6 +236,8 @@ listing = md.Listing('unordered',
 
 - Just normal text
 - *some stylised text*
+- [ ] Listings can include checkboxes
+- [x] Checked and unchecked option available
 - Sublist by using a tuple
     1. first
     2. second
@@ -386,10 +394,12 @@ document = document1 + document2
 
 [Link to Markdown Guide](https://www.markdownguide.org)
 
-Example paragraph containing **bolded text**
+Example paragraph containing**bolded text**
 
 - Just normal text
 - *some stylised text*
+- [ ] Listings can include checkboxes
+- [x] Checked and unchecked option available
 - Sublist by using a tuple
     1. first
     2. second
@@ -401,10 +411,12 @@ Example paragraph containing **bolded text**
 
 [Link to Markdown Guide](https://www.markdownguide.org)
 
-Example paragraph containing **bolded text**
+Example paragraph containing**bolded text**
 
 - Just normal text
 - *some stylised text*
+- [ ] Listings can include checkboxes
+- [x] Checked and unchecked option available
 - Sublist by using a tuple
     1. first
     2. second
@@ -415,8 +427,7 @@ Example paragraph containing **bolded text**
 
 ## Annex 1: README Python source
 
-And here the full source code that wrote this README.
-This can serve as a more advanced example of what this is capable of.
+And here the full source code that wrote this README. This can serve as a more advanced example of what this is capable of.
 
 [The python file can also be found here](https://github.com/Limespy/YAMDOG/blob/main/readme.py)
 
@@ -454,7 +465,8 @@ def main():
         f'''{name} is toolkit for creating Markdown text using Python.
 Markdown is a light and relatively simple markup language.''',
         md.TOC()
-        ]
+        ],
+        ('yaml', 'test')
     )
 
     quick_start_guide = md.Document([
@@ -468,7 +480,7 @@ Markdown is a light and relatively simple markup language.''',
         md.CodeBlock(f'pip install {pypiname}'),
         md.Heading(2, 'Using the package'),
         f'There are two main things to building a Markdown document using {name}',
-        md.Listing('ordered', ['Making elements',
+        md.Listing(md.ORDERED, ['Making elements',
                                'Combining elements into a document']),
         md.Paragraph(['You can call ',
             md.Code('str'),
@@ -512,11 +524,11 @@ def make_examples(source: str) -> md.Document:
 
     def get_example(title: str, element: md.Element) -> md.Document:
         return md.Document([md.Heading(4, title.capitalize()),
-                            md.Text('Python source', {'italic'}),
+                            md.Text('Python source', {md.ITALIC}),
                             examples[title],
-                            md.Text('Markdown source', {'italic'}),
+                            md.Text('Markdown source', {md.ITALIC}),
                             md.CodeBlock(element, 'markdown'),
-                            md.Text('Rendered result', {'italic'}),
+                            md.Text('Rendered result', {md.ITALIC}),
                             element,
                             md.HRule()])
 
@@ -541,11 +553,11 @@ def make_examples(source: str) -> md.Document:
     doc += get_example('heading', heading)
 
     #%% stylised
-    bold_text = md.Text('bolded text', {'bold'})
-    italiced_text = md.Text('some italiced text', {'italic'})
-    strikethrough_text = md.Text('striken text', {'strikethrough'})
+    bold_text = md.Text('bolded text', {md.BOLD})
+    italiced_text = md.Text('some italiced text', {md.ITALIC})
+    strikethrough_text = md.Text('striken text', {md.STRIKETHROUGH})
     all_together = md.Text('All styles combined',
-                                   {'bold', 'italic', 'strikethrough'})
+                                   {md.BOLD, md.ITALIC, md.STRIKETHROUGH})
 
     doc += bold_text
     doc += italiced_text
@@ -556,7 +568,7 @@ def make_examples(source: str) -> md.Document:
 
     #%%  paragraph
     paragraph = md.Paragraph(['Example paragraph containing ',
-                              md.Text('bolded text', {'bold'})])
+                              md.Text('bolded text', {md.BOLD})])
 
     doc += get_example('paragraph', paragraph)
 
@@ -586,14 +598,18 @@ def make_examples(source: str) -> md.Document:
     doc += examples['table compact attribute']
 
     #%% listing
-    listing = md.Listing('unordered', 
+    listing = md.Listing(md.UNORDERED, 
                          ['Just normal text',
-                          md.Text('some stylised text', {'italic'}),
+                          md.Text('some stylised text', {md.ITALIC}),
+                          md.Checkbox(False, 'Listings can include checkboxes'),
+                          md.Checkbox(True, 'Checked and unchecked option available'),
                           ('Sublist by using a tuple',
-                            md.Listing('ordered',
+                            md.Listing(md.ORDERED,
                                       ['first', 'second']))])
 
     doc += get_example('listing', listing)
+
+    #%% checklist
 
 
     #%% link
@@ -657,9 +673,9 @@ def make_examples(source: str) -> md.Document:
     doc += 'Adding two documents together'
     doc += examples['document concatenation']
 
-    doc += md.Text('Markdown source', {'italic'})
+    doc += md.Text('Markdown source', {md.ITALIC})
     doc += md.CodeBlock(document, 'markdown')
-    doc += md.Text('Rendered result', {'italic'})
+    doc += md.Text('Rendered result', {md.ITALIC})
     doc += document
 
     return doc
@@ -668,7 +684,4 @@ if __name__ == '__main__':
     main()
 ```
 
-[1]: <https://pypi.org/project/yamdog> ""
-[2]: <https://pypi.org/project/yamdog> ""
-[3]: <https://pypi.org/project/yamdog> ""
-[4]: <https://pypi.org/project/yamdog> ""
+[1]: <https://pypi.org/project/yamdog> "" [2]: <https://pypi.org/project/yamdog> "" [3]: <https://pypi.org/project/yamdog> "" [4]: <https://pypi.org/project/yamdog> ""

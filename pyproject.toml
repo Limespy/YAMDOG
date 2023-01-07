@@ -42,3 +42,6 @@ dev = [
     "tomli-w >= 1.0.0, <1.1",
     "wheel >= 0.38",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unittests",]

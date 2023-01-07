@@ -31,7 +31,8 @@ def main():
         f'''{name} is toolkit for creating Markdown text using Python.
 Markdown is a light and relatively simple markup language.''',
         md.TOC()
-        ]
+        ],
+        ('yaml', 'test')
     )
 
     quick_start_guide = md.Document([
@@ -45,7 +46,7 @@ Markdown is a light and relatively simple markup language.''',
         md.CodeBlock(f'pip install {pypiname}'),
         md.Heading(2, 'Using the package'),
         f'There are two main things to building a Markdown document using {name}',
-        md.Listing('ordered', ['Making elements',
+        md.Listing(md.ORDERED, ['Making elements',
                                'Combining elements into a document']),
         md.Paragraph(['You can call ',
             md.Code('str'),
@@ -89,11 +90,11 @@ def make_examples(source: str) -> md.Document:
 
     def get_example(title: str, element: md.Element) -> md.Document:
         return md.Document([md.Heading(4, title.capitalize()),
-                            md.Text('Python source', {'italic'}),
+                            md.Text('Python source', {md.ITALIC}),
                             examples[title],
-                            md.Text('Markdown source', {'italic'}),
+                            md.Text('Markdown source', {md.ITALIC}),
                             md.CodeBlock(element, 'markdown'),
-                            md.Text('Rendered result', {'italic'}),
+                            md.Text('Rendered result', {md.ITALIC}),
                             element,
                             md.HRule()])
 
@@ -118,11 +119,11 @@ def make_examples(source: str) -> md.Document:
     doc += get_example('heading', heading)
 
     #%% stylised
-    bold_text = md.Text('bolded text', {'bold'})
-    italiced_text = md.Text('some italiced text', {'italic'})
-    strikethrough_text = md.Text('striken text', {'strikethrough'})
+    bold_text = md.Text('bolded text', {md.BOLD})
+    italiced_text = md.Text('some italiced text', {md.ITALIC})
+    strikethrough_text = md.Text('striken text', {md.STRIKETHROUGH})
     all_together = md.Text('All styles combined',
-                                   {'bold', 'italic', 'strikethrough'})
+                                   {md.BOLD, md.ITALIC, md.STRIKETHROUGH})
 
     doc += bold_text
     doc += italiced_text
@@ -133,7 +134,7 @@ def make_examples(source: str) -> md.Document:
 
     #%%  paragraph
     paragraph = md.Paragraph(['Example paragraph containing ',
-                              md.Text('bolded text', {'bold'})])
+                              md.Text('bolded text', {md.BOLD})])
 
     doc += get_example('paragraph', paragraph)
 
@@ -163,14 +164,18 @@ def make_examples(source: str) -> md.Document:
     doc += examples['table compact attribute']
 
     #%% listing
-    listing = md.Listing('unordered', 
+    listing = md.Listing(md.UNORDERED, 
                          ['Just normal text',
-                          md.Text('some stylised text', {'italic'}),
+                          md.Text('some stylised text', {md.ITALIC}),
+                          md.Checkbox(False, 'Listings can include checkboxes'),
+                          md.Checkbox(True, 'Checked and unchecked option available'),
                           ('Sublist by using a tuple',
-                            md.Listing('ordered',
+                            md.Listing(md.ORDERED,
                                       ['first', 'second']))])
 
     doc += get_example('listing', listing)
+
+    #%% checklist
 
 
     #%% link
@@ -234,9 +239,9 @@ def make_examples(source: str) -> md.Document:
     doc += 'Adding two documents together'
     doc += examples['document concatenation']
 
-    doc += md.Text('Markdown source', {'italic'})
+    doc += md.Text('Markdown source', {md.ITALIC})
     doc += md.CodeBlock(document, 'markdown')
-    doc += md.Text('Rendered result', {'italic'})
+    doc += md.Text('Rendered result', {md.ITALIC})
     doc += document
 
     return doc
