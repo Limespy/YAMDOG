@@ -16,7 +16,7 @@ def test_text_str(args, expected):
     assert str(md.Text(*args)) == expected
 #──────────────────────────────────────────────────────────────────────────────
 def test_text_invalid_style():
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         md.Text('test', {'test'})
 #──────────────────────────────────────────────────────────────────────────────
 def test_text_superscrip_subscipt():
@@ -129,7 +129,7 @@ def test_make_cheklist_return_correct_listing_style():
 #══════════════════════════════════════════════════════════════════════════════
 # Table
 @pytest.mark.parametrize("args,expected_pretty,expected_compact", [
-    ((['a', 'b', 'c'], [[1, 2, 3333],[4, 5, 6, 7]], [md.LEFT, md.CENTER, md.RIGHT]),
+    ((['a', 'b', 'c'], [[1, 2, 3333],(4, 5, 6, 7)], [md.LEFT, md.CENTER, md.RIGHT]),
      '''
 | a   |  b  |    c |     |
 | :-- | :-: | ---: | :-- |

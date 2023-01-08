@@ -3,17 +3,18 @@
 Handles"""
 #══════════════════════════════════════════════════════════════════════════════
 # IMPORT
+
+from .dataclass_validate import _validate_fields
+
 from collections.abc import Sequence
 from collections import defaultdict
 from dataclasses import dataclass, field
 import enum
 import itertools
-import pathlib
 import re
 import string
 from typing import Union as U
-from typing import (Any, Generator, Iterable, Optional, # type: ignore
-                    _SpecialForm, _UnionGenericAlias, _AnyMeta) # type: ignore
+from typing import Any, Generator, Iterable, Optional # type: ignore
 #══════════════════════════════════════════════════════════════════════════════
 # AUXILIARIES
 _INDENT = '    '
@@ -89,42 +90,15 @@ def _collect_iter(items: Iterable) -> tuple[dict, dict]:
                 old |= new
     return output
 #══════════════════════════════════════════════════════════════════════════════
+# dataclass field validation
+
+#══════════════════════════════════════════════════════════════════════════════
 # ELEMENTS BASE CLASSES
 @dataclass(slots = True)
 class Element:
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self) -> None:
-        self._validate_fields()
-    #─────────────────────────────────────────────────────────────────────────
-    def _validate_fields(self) -> None:
-        '''Checks types of the attributes of the class
-        '''
-        # TODO probably should be recursive
-        for field_name, field_def in self.__dataclass_fields__.items():
-            fieldtype = field_def.type
-            if isinstance(fieldtype, (_SpecialForm, _AnyMeta)):
-                continue
-
-            fieldvalue = getattr(self, field_name) # type: ignore
-            if fieldtype is Iterable: # Iterables
-                fieldvalue = getattr(self, field_name)
-                if not hasattr(fieldvalue, '__iter__'):
-                    raise TypeError(f"'{type(fieldvalue).__name__}' object is not iterable")
-                continue
-            elif isinstance(fieldtype, _UnionGenericAlias): # Unions 
-                subtypes = fieldtype.__args__
-                for subtype in subtypes:
-                    if isinstance(fieldvalue, subtype):
-                        break
-                else:
-                    raise TypeError(f'{type(fieldvalue).__name__} not in {subtypes}')
-                continue
-            base_type = (fieldtype.__origin__
-                         if hasattr(fieldtype, '__origin__')
-                         else fieldtype)
-
-            if not isinstance(fieldvalue, base_type):
-                raise TypeError(f"Parameter '{field_name}' must be instance of type '{base_type.__name__}', not '{type(fieldvalue).__name__}'")
+        _validate_fields(self)
     #─────────────────────────────────────────────────────────────────────────
     def __add__(self, other):
         return Document([self, other])
@@ -200,7 +174,7 @@ class Text(ContainerElement, InlineElement):
     style: set[TextStyle] = field(default_factory = set)
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self):
-        self._validate_fields()
+        _validate_fields(self)
         if incorrect_substyles := [substyle for substyle in self.style
                                    if substyle not in notations]:
             raise ValueError(f'Style options {incorrect_substyles} invalid')
@@ -273,9 +247,6 @@ class Listing(IterableElement):
     style: ListingStyle
     content: Iterable
     #─────────────────────────────────────────────────────────────────────────
-    def __post_init__(self) -> None:
-        self._validate_fields()
-    #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         prefixes, prefix_length = markers[self.style]
         output = []
@@ -315,7 +286,7 @@ class Heading(Element):
     in_TOC: bool = True
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self) -> None:
-        self._validate_fields()
+        _validate_fields(self)
         if self.level <= 0:
             raise ValueError(f'Level must be greater that 0, not {self.level}')
     #─────────────────────────────────────────────────────────────────────────
@@ -498,10 +469,10 @@ class _Header(Element):
 @dataclass(slots = True)
 class Document(IterableElement):
     content: list = field(default_factory = list) # attribute name important
-    header_language_and_text: tuple[Any, Any] = field(default_factory = tuple) # type: ignore
+    header_language_and_text: U[tuple[()], tuple[Any, Any]] = field(default_factory = tuple) # type: ignore
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self)  -> None:
-        self._validate_fields()
+        _validate_fields(self)
         if len(self.header_language_and_text) not in (0, 2):
             raise ValueError('Header and language must be specified together')
     #─────────────────────────────────────────────────────────────────────────
