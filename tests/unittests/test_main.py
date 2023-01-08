@@ -98,6 +98,15 @@ def test_heading_raises_valueerror():
     with pytest.raises(ValueError):
         md.Heading(0, 'test')
 #══════════════════════════════════════════════════════════════════════════════
+# Listing
+@pytest.mark.parametrize("args,expected", [
+    ((md.ORDERED, [1, 2]), '1. 1\n2. 2'),
+    ((md.UNORDERED, [1, 2]), '- 1\n- 2'),
+    ((md.DEFINITION, [1, 2]), ': 1\n: 2'),
+])
+def test_listing_str(args, expected):
+    assert str(md.Listing(*args)) == expected
+#══════════════════════════════════════════════════════════════════════════════
 # Checkbox
 @pytest.mark.parametrize("args,expected", [
     ((True, 'test'), '[x] test'),
@@ -120,15 +129,17 @@ def test_make_cheklist_return_correct_listing_style():
 #══════════════════════════════════════════════════════════════════════════════
 # Table
 @pytest.mark.parametrize("args,expected_pretty,expected_compact", [
-    ((['a', 'b', 'c'], [[1, 2, 3]], [md.LEFT, md.CENTER, md.RIGHT]),
+    ((['a', 'b', 'c'], [[1, 2, 3333],[4, 5, 6, 7]], [md.LEFT, md.CENTER, md.RIGHT]),
      '''
-| a   |  b  |   c |
-| :-- | :-: | --: |
-| 1   |  2  |   3 |''',
+| a   |  b  |    c |     |
+| :-- | :-: | ---: | :-- |
+| 1   |  2  | 3333 |     |
+| 4   |  5  |    6 | 7   |''',
      '''
-a|b|c
-:--|:-:|--:
-1|2|3'''),
+a|b|c|
+:--|:-:|--:|:--
+1|2|3333|
+4|5|6|7'''),
 ])
 def test_table_str(args, expected_pretty, expected_compact):
     assert str(md.Table(*args)) == expected_pretty.strip()
@@ -192,7 +203,7 @@ def test_hrule_str():
 def test_code_str(args, expected):
     assert str(md.Code(*args)) == expected
 #══════════════════════════════════════════════════════════════════════════════
-# MathBlock
+# CodeBlock
 @pytest.mark.parametrize("args,expected", [
     (('',),             '```\n\n```'),
     (('',),             '```\n\n```'),
@@ -201,6 +212,23 @@ def test_code_str(args, expected):
 ])
 def test_codeblock_str(args, expected):
     assert str(md.CodeBlock(*args)) == expected
+#══════════════════════════════════════════════════════════════════════════════
+# QuoteBlock
+@pytest.mark.parametrize("args,expected", [
+    (('',),             '> '),
+    (('1',), '> 1'),
+    (('1\n2',), '> 1\n> 2')
+])
+def test_quoteblock_str(args, expected):
+    assert str(md.QuoteBlock(*args)) == expected
+#══════════════════════════════════════════════════════════════════════════════
+# Image
+@pytest.mark.parametrize("args,expected", [(('',),   '![]()'),
+                                           (('',''), '![]()'),
+                                           (('',''), '![]()'),
+                                           ((2,1),   '![1](2)'),])
+def test_qimagek_str(args, expected):
+    assert str(md.Image(*args)) == expected
 #══════════════════════════════════════════════════════════════════════════════
 # Document
 @pytest.mark.parametrize("args", [tuple(),
@@ -262,15 +290,18 @@ def test_document_str_references():
 #──────────────────────────────────────────────────────────────────────────────
 def test_document_toc():
     headings = [md.Heading(i, f'h{i}') for i in range(1,6,1)]
-
+    # creating example
     reftext, ref = md._heading_ref_texts(headings[3].text) # level up to 4
+
     listing = md.Listing(md.UNORDERED, [md.Link(reftext, ref)])
     for heading in reversed(headings[:3]):
         reftext, ref = md._heading_ref_texts(heading.text)
         listing = md.Listing(md.UNORDERED, [(md.Link(reftext, ref), listing)])
-
-    doc = md.Document([md.TOC()] + headings)
-    assert str(doc).startswith(str(listing))
+    # Testing duplicate headers
+    reftext, ref = md._heading_ref_texts(headings[0].text)
+    listing.content.append(md.Link(reftext, ref + '1'))
+    headings.append(headings[0])
+    assert str(md.Document([md.TOC()] + headings)).startswith(str(listing))
 #──────────────────────────────────────────────────────────────────────────────
 def test_document_iadd_element():
     document = md.Document(['test'])

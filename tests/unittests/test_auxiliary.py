@@ -16,8 +16,8 @@ def test_string_cleaning():
 #══════════════════════════════════════════════════════════════════════════════
 # Element
 @pytest.mark.parametrize("index,value", [
-    (i, value) for i, value in enumerate(('s', 1, [], 1, 1.5))])
-def test_validation(index, value):
+    (i, value) for i, value in enumerate(('s', 1, [], 1, 1.5, 1.5))])
+def test_element_validation(index, value):
     @dataclass
     class Cls(md.Element):
         Int: int
@@ -25,13 +25,20 @@ def test_validation(index, value):
         Tuple: tuple
         Iterable: typing.Iterable
         Optional: typing.Optional[int]
+        Union: typing.Union[int, str]
         Any: typing.Any
         def __str__(self) -> str:
             return ''
-    args = [1, 1.2, (1, 2), [1,2,3], None, 's']
+    args = [1, 1.2, (1, 2), [1,2,3], None, 's', 's']
     args[index] = value
     with pytest.raises(TypeError):
         Cls(*args)
+#──────────────────────────────────────────────────────────────────────────────
+def test_element_add():
+    element1 = md.Heading(1, 'test')
+    element2 = md.Link('test', 'case')
+    assert element1 + element2 == md.Document([element1, element2])
+    assert element2 + element1 == md.Document([element2, element1])
 #══════════════════════════════════════════════════════════════════════════════
 # _collect_iter
 def test_collect_iter():

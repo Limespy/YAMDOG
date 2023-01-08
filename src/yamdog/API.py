@@ -275,8 +275,6 @@ class Listing(IterableElement):
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self) -> None:
         self._validate_fields()
-        if self.style not in markers:
-            raise ValueError(f'{self.style} not in recognised')
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         prefixes, prefix_length = markers[self.style]
@@ -377,7 +375,7 @@ class Link(InlineElement):
             return f'[{self.text}][{self._index}]'
         return f'[{self.text}]({self.url})'
 #══════════════════════════════════════════════════════════════════════════════
-def pad(items: Iterable[str],
+def pad(items: list[str],
         widths: Iterable[int],
         alignments: Iterable[Alignment]
          ) -> Generator[str, None, None]:
@@ -392,6 +390,8 @@ def pad(items: Iterable[str],
         else:
             raise ValueError(f'alignment {alignment} not recognised')
 #══════════════════════════════════════════════════════════════════════════════
+def _str_row_sparse(row: Iterable[str]):
+    return '| ' + ' | '.join(row) + ' |'
 @dataclass(slots = True)
 class Table(IterableElement):
     header: Iterable
@@ -412,10 +412,6 @@ class Table(IterableElement):
         else:
             raise TypeError(f"'{type(row)}' is not iterable")
     #─────────────────────────────────────────────────────────────────────────
-    @staticmethod
-    def _str_row_sparse(row: Iterable[str]):
-        return '| ' + ' | '.join(row) + ' |'
-    #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         header = [str(item) for item in self.header]
         headerlen = len(header)
@@ -424,7 +420,7 @@ class Table(IterableElement):
         for row in self.content:
             if len(row) > max_rowlen:
                 max_rowlen = len(row)
-
+        header += ['']*(max_rowlen - len(header))
         alignment = self.alignment + [LEFT] * (max_rowlen - len(self.alignment))
         alignment_row: list[str] = []
         if self.compact:
@@ -440,6 +436,7 @@ class Table(IterableElement):
                     alignment_row.append('--:')
             output.append('|'.join(alignment_row))
             for row in self.content:
+                row = list(row) + [''] * (max_rowlen - len(row))
                 output.append('|'.join(str(item) for item in row))
         else:
             # maximum cell widths
@@ -451,7 +448,7 @@ class Table(IterableElement):
                     if celllen > max_widths[i]:
                         max_widths[i] = celllen
 
-            output = [self._str_row_sparse(pad(header, max_widths, alignment))]
+            output = [_str_row_sparse(pad(header, max_widths, alignment))]
             # Alignments and paddings
             for item, width in zip(alignment, max_widths):
                 if item == LEFT:
@@ -460,9 +457,10 @@ class Table(IterableElement):
                     alignment_row.append(':'+ (width - 2) * '-' + ':')
                 elif item == RIGHT:
                     alignment_row.append((width - 1) * '-' + ':')
-            output.append(self._str_row_sparse(item for item in alignment_row))
+            output.append(_str_row_sparse(item for item in alignment_row))
             for row in content:
-                output.append(self._str_row_sparse(pad(row, max_widths, alignment)))
+                row = list(row) + [''] * (max_rowlen - len(row))
+                output.append(_str_row_sparse(pad(row, max_widths, alignment)))
         return '\n'.join(output)
 
 #══════════════════════════════════════════════════════════════════════════════
@@ -639,7 +637,7 @@ class HRule(Element):
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class Image(Element):
-    path: U[str, pathlib.Path]
+    path: Any
     alt_text: Any = ''
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
