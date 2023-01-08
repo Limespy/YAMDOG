@@ -1,7 +1,8 @@
+"""API module
 
+Handles"""
 #══════════════════════════════════════════════════════════════════════════════
 # IMPORT
-from abc import abstractmethod, ABC
 from collections.abc import Sequence
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -11,7 +12,8 @@ import pathlib
 import re
 import string
 from typing import Union as U
-from typing import Any, Generator, Iterable, Optional, _SpecialForm, _UnionGenericAlias, _AnyMeta # type: ignore
+from typing import (Any, Generator, Iterable, Optional, # type: ignore
+                    _SpecialForm, _UnionGenericAlias, _AnyMeta) # type: ignore
 #══════════════════════════════════════════════════════════════════════════════
 # AUXILIARIES
 _INDENT = '    '
@@ -49,17 +51,22 @@ SUPERSCRIPT = TextStyle.SUPERSCRIPT
 SUBSCRIPT = TextStyle.SUBSCRIPT
 HIGHLIGHT = TextStyle.HIGHLIGHT
 
-@dataclass(frozen = True, slots = True)
-class Flavour(set):
-    name: str
+class Flavour(enum.Enum):
+    BASIC = 1
+    EXTENDED = 2
+    GITHUB = 3
+    GITLAB = 4
+    PYPI = 5
 
-BASIC = Flavour('Basic')
+BASIC = Flavour.BASIC
+EXTENDED = Flavour.EXTENDED
+GITHUB = Flavour.GITHUB
+GITLAB = Flavour.GITLAB
+PYPI = Flavour.PYPI
 
-GITHUB = Flavour('GitHub')
-GITLAB = Flavour('GitLab')
-
-_re_whitespaces = re.compile('\s\s*')
-def clean_string(text: str):
+_re_whitespaces = re.compile(r'\s\s*') # r to fix deprecation warning 
+# https://stackoverflow.com/questions/60859794/how-to-fix-string-deprecationwarning-invalid-escape-sequence-in-python
+def _clean_string(text: str):
     return _re_whitespaces.sub(' ', text).strip()
 #══════════════════════════════════════════════════════════════════════════════
 def _collect_iter(items: Iterable) -> tuple[dict, dict]:
@@ -77,57 +84,58 @@ def _collect_iter(items: Iterable) -> tuple[dict, dict]:
     '''
     output: tuple[dict[Link, None], dict[Footnote, None]] = ({}, {})
     for item in items:
-        if hasattr(item, '_collect'):
+        if isinstance(item, Element) and hasattr(item, '_collect'):
             for old, new in zip(output, item._collect()):
                 old |= new
     return output
 #══════════════════════════════════════════════════════════════════════════════
 # ELEMENTS BASE CLASSES
 @dataclass(slots = True)
-class Element(ABC):
+class Element:
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self) -> None:
         self._validate_fields()
     #─────────────────────────────────────────────────────────────────────────
     def _validate_fields(self) -> None:
-         for field_name, field_def in self.__dataclass_fields__.items():
-            if isinstance(field_def.type, (_SpecialForm, _AnyMeta)):
-                continue # type: ignore
-            elif field_def.type is Iterable:
-                field_value = getattr(self, field_name)
-                if not hasattr(field_value, '__iter__'):
-                    raise TypeError(f"'{type(field_value)}' object is not iterable")
+        '''Checks types of the attributes of the class
+        '''
+        # TODO probably should be recursive
+        for field_name, field_def in self.__dataclass_fields__.items():
+            fieldtype = field_def.type
+            if isinstance(fieldtype, (_SpecialForm, _AnyMeta)):
                 continue
-            elif isinstance(field_def.type, _UnionGenericAlias):
-                field_value = getattr(self, field_name) # type: ignore
-                field_types = field_def.type.__args__
-                for field_type in field_types:
-                    if isinstance(field_value, field_type):
+
+            fieldvalue = getattr(self, field_name) # type: ignore
+            if fieldtype is Iterable: # Iterables
+                fieldvalue = getattr(self, field_name)
+                if not hasattr(fieldvalue, '__iter__'):
+                    raise TypeError(f"'{type(fieldvalue).__name__}' object is not iterable")
+                continue
+            elif isinstance(fieldtype, _UnionGenericAlias): # Unions 
+                subtypes = fieldtype.__args__
+                for subtype in subtypes:
+                    if isinstance(fieldvalue, subtype):
                         break
                 else:
-                    raise TypeError(f'{type(field_value)} not in {field_types}')
-                # TODO
+                    raise TypeError(f'{type(fieldvalue).__name__} not in {subtypes}')
                 continue
-            field_type = (field_def.type.__origin__ 
-                          if hasattr(field_def.type, '__origin__')
-                          else field_def.type)
-            field_value = getattr(self, field_name)
-            if not isinstance(field_value, field_type):
-                raise TypeError(f'Parameter {field_name} must be instance of type {field_type}, not {type(field_value)}')
+            base_type = (fieldtype.__origin__
+                         if hasattr(fieldtype, '__origin__')
+                         else fieldtype)
+
+            if not isinstance(fieldvalue, base_type):
+                raise TypeError(f"Parameter '{field_name}' must be instance of type '{base_type.__name__}', not '{type(fieldvalue).__name__}'")
     #─────────────────────────────────────────────────────────────────────────
     def __add__(self, other):
         return Document([self, other])
-    #─────────────────────────────────────────────────────────────────────────
-    @abstractmethod
-    def __str__(self) -> str:
-        pass
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class ContainerElement(Element):
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
-        if hasattr(self.content, '_collect'): # type: ignore
-            return self.content._collect()  # type: ignore
+        if (isinstance(self.content, Element) # type: ignore
+            and hasattr(self.content, '_collect')): # type: ignore
+            return self.content._collect() # type: ignore
         return {}, {}
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
@@ -141,123 +149,11 @@ class IterableElement(Element):
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass
 class InlineElement(Element):
+    """So far only a marker class to wheter element can be treated as inline"""
     pass
 #══════════════════════════════════════════════════════════════════════════════
 # BASIC ELEMENTS
-@dataclass(slots = True)
-class TOC(Element):
-    level: int = 4
-    _text: str = ''
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self) -> str:
-        return self._text
-#══════════════════════════════════════════════════════════════════════════════
-def _translate(text, *args):
-    return str(text).translate(''.maketrans(*args))
-#══════════════════════════════════════════════════════════════════════════════
-def _header_ref_texts(text: str) -> tuple[str, str]:
-    return (_translate(text, '', '', '[]'),
-            '#' + _translate(text, ' ', '-', string.punctuation).lower())
-#══════════════════════════════════════════════════════════════════════════════
-@dataclass(slots = True)
-class Header(Element):
-    language: str
-    text: str
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self) -> str:
-        language = str(self.language).strip().lower()
-        if language == 'yaml':
-            return f'---\n{self.text}\n---'
-        elif language == 'toml':
-            return f'+++\n{self.text}\n+++'
-        elif language == 'json':
-            return f';;;\n{self.text}\n;;;'
-        else:
-            return f'---{self.language}\n{self.text}\n---'
-#══════════════════════════════════════════════════════════════════════════════
-@dataclass(slots = True)
-class Document(IterableElement):
-    content: list = field(default_factory = list) # attribute name important
-    header_language_and_text: tuple[Any, Any] = field(default_factory = tuple) # type: ignore
-    #─────────────────────────────────────────────────────────────────────────
-    def __post_init__(self)  -> None:
-        self._validate_fields()
-        if len(self.header_language_and_text) not in (0, 2):
-            raise ValueError('Header and language must be specified together')
-    #─────────────────────────────────────────────────────────────────────────
-    def __add__(self, item):
-        if isinstance(item, self.__class__):
-            self.content += item.content
-        else:
-            self.content.append(item)
-        return self
-    #─────────────────────────────────────────────────────────────────────────
-    def __iadd__(self, item):
-        return self.__add__(item)
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self)  -> str:
-        content = list(self.content)
-        # Making heading
-        if self.header_language_and_text:
-            content.insert(0, Header(*self.header_language_and_text))
 
-        references, footnotes = self._collect()
-
-        if footnotes: # Handling footnotes
-            for index, footnote in enumerate(footnotes, start = 1):
-                footnote._index = index
-            content.append('\n'.join(f'[^{footnote._index}]: {footnote.content}'
-                                    for footnote in footnotes))
-
-        if references: # Handling references
-            for index, link in enumerate(references, start = 1):
-                link._index = index
-            content.append('\n'.join(f'[{link._index}]: <{link.url}> "{link.title}"'
-                                    for link in references))
-        # Creating TOC
-        headings = []
-        TOCs: dict[int, list[TOC]] = defaultdict(list)
-        top_level = 9
-        for item in self.content:
-            if isinstance(item, Heading) and item.in_TOC:
-                headings.append(item)
-                if item.level < top_level:
-                    top_level = item.level
-            elif isinstance(item, TOC):
-                TOCs[item.level] += [item]
-
-        if TOCs and headings:
-            refs: dict[str, int] = {}
-            TOCtexts: dict[int, list[str]] = defaultdict(list)
-            for heading in headings:
-                text, ref = _header_ref_texts(heading.text)
-
-                if ref in refs: # Handling multiple same refs
-                    refs[ref] += 1
-                    ref += str(refs[ref]) 
-                else:
-                    refs[ref] = 0
-
-                line = '- '.join(((heading.level - top_level) * _INDENT,
-                                  f'[{text}]({ref})'))
-
-                for level in TOCs:
-                    if heading.level <= level:
-                        TOCtexts[level] += [line]
-
-            for level, toclist in TOCs.items():
-                text = '\n'.join(TOCtexts[level])
-                for toc in toclist:
-                    toc._text = text
-
-        return '\n\n'.join(clean_string(item) if isinstance(item, str)
-                           else str(item) for item in content)
-    #─────────────────────────────────────────────────────────────────────────
-    def to_file(self,
-                filepath: pathlib.Path = pathlib.Path.cwd() / 'document.md'
-                ) -> None:
-        with open(filepath, 'w+', encoding  = 'utf8') as f:
-            f.write(str(self))
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class Paragraph(IterableElement):
@@ -265,7 +161,7 @@ class Paragraph(IterableElement):
     separator: str = ''
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        return self.separator.join(clean_string(item) if isinstance(item, str)
+        return self.separator.join(_clean_string(item) if isinstance(item, str)
                                    else str(item) for item in self.content)
     #─────────────────────────────────────────────────────────────────────────
     def __iadd__(self, other):
@@ -273,10 +169,10 @@ class Paragraph(IterableElement):
             self.content.append(other)
             return self
         elif isinstance(other, Paragraph):
-            self.content + other.content
+            self.content += other.content
             return self
         else:
-            raise NotImplementedError(f'+= has not been implemented for Paragraph with object {repr(other)} type{type(other)}')
+            raise TypeError(f"+= has not been implemented for Paragraph with object {repr(other)} type '{type(other).__name__}'")
 #══════════════════════════════════════════════════════════════════════════════
 notations = {BOLD:          '**',
              ITALIC:        '*',
@@ -309,7 +205,7 @@ class Text(ContainerElement, InlineElement):
                                    if substyle not in notations]:
             raise ValueError(f'Style options {incorrect_substyles} invalid')
 
-        if SUBSCRIPT and SUPERSCRIPT in self.style:
+        if SUBSCRIPT in self.style and SUPERSCRIPT in self.style:
             raise ValueError('Text cannot be both superscript and subscript')
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
@@ -343,7 +239,7 @@ class Text(ContainerElement, InlineElement):
         self.style.discard(STRIKETHROUGH)
         return self
     #─────────────────────────────────────────────────────────────────────────
-    def superscipt(self):
+    def superscribe(self):
         self.style.discard(SUBSCRIPT)
         self.style.add(SUPERSCRIPT)
         return self
@@ -357,7 +253,7 @@ class Text(ContainerElement, InlineElement):
         self.style.add(SUBSCRIPT)
         return self
     #─────────────────────────────────────────────────────────────────────────
-    def unsubscript(self):
+    def unsubscribe(self):
         self.style.discard(SUBSCRIPT)
         return self
     #─────────────────────────────────────────────────────────────────────────
@@ -374,16 +270,16 @@ markers = {UNORDERED: (lambda : itertools.repeat('- '), 2),
            DEFINITION: (lambda : itertools.repeat(': '), 2)}
 @dataclass(slots = True)
 class Listing(IterableElement):
-    listingtype: ListingStyle
+    style: ListingStyle
     content: Iterable
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self) -> None:
         self._validate_fields()
-        if self.listingtype not in markers:
-            raise ValueError(f'{self.listingtype} not in recognised')
+        if self.style not in markers:
+            raise ValueError(f'{self.style} not in recognised')
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        prefixes, prefix_length = markers[self.listingtype]
+        prefixes, prefix_length = markers[self.style]
         output = []
         for item, prefix in zip(self.content, prefixes()):
             if (isinstance(item, tuple)
@@ -405,7 +301,10 @@ class Checkbox(ContainerElement):
         return self.checked
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        return f'[{"x" if self else " "}] {self.content}'
+        content = (_clean_string(self.content)
+                  if isinstance(self.content, str)
+                  else self.content)
+        return (f'[{"x" if self else " "}] {content}')
 #══════════════════════════════════════════════════════════════════════════════
 def make_checklist(items: Iterable[tuple[bool, Any]]):
     return Listing(UNORDERED, (Checkbox(*item) for item in items))
@@ -432,6 +331,12 @@ class Heading(Element):
             return ''.join((self.level * "#", ' ', text, toccomment))
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
+class Code(InlineElement):
+    text: Any
+    def __str__(self) -> str:
+        return f'`{self.text}`'
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
 class CodeBlock(InlineElement):
     content: Any
     language: Any = ''
@@ -439,22 +344,17 @@ class CodeBlock(InlineElement):
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         text = str(self.content)
+        language = _clean_string(str(self.language))
         self._tics = (self.content._tics + 1
                       if isinstance(self.content, CodeBlock)
                       else self._tics)
-        return f'{"`" * self._tics}{self.language}\n{text}\n{"`" * self._tics}'
+        return f'{"`" * self._tics}{language}\n{text}\n{"`" * self._tics}'
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class Address(InlineElement):
     text: Any
     def __str__(self) -> str:
         return f'<{self.text}>'
-#══════════════════════════════════════════════════════════════════════════════
-@dataclass(slots = True)
-class Code(InlineElement):
-    text: Any
-    def __str__(self) -> str:
-        return f'`{self.text}`'
 #══════════════════════════════════════════════════════════════════════════════
 @dataclass(slots = True)
 class Link(InlineElement):
@@ -470,7 +370,7 @@ class Link(InlineElement):
         return {self: None}, {}
     #─────────────────────────────────────────────────────────────────────────
     def __hash__(self) -> int:
-        return hash(str(self.url)) + hash(str(self.title))
+        return hash(str(self.url)) + hash(str(self.title)) + hash(str(self.text))
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         if self._index:
@@ -530,7 +430,7 @@ class Table(IterableElement):
         if self.compact:
             output = ['|'.join(header)]
             # Alignments
-            
+
             for i, item in enumerate(alignment):
                 if item == LEFT:
                     alignment_row.append(':--')
@@ -564,6 +464,124 @@ class Table(IterableElement):
             for row in content:
                 output.append(self._str_row_sparse(pad(row, max_widths, alignment)))
         return '\n'.join(output)
+
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
+class TOC(Element):
+    level: int = 4
+    _text: str = ''
+    #─────────────────────────────────────────────────────────────────────────
+    def __str__(self) -> str:
+        return self._text
+#══════════════════════════════════════════════════════════════════════════════
+def _translate(text, *args):
+    return str(text).translate(''.maketrans(*args))
+#══════════════════════════════════════════════════════════════════════════════
+def _heading_ref_texts(text: str) -> tuple[str, str]:
+    return (_translate(text, '', '', '[]'),
+            '#' + _translate(text, ' ', '-', string.punctuation).lower())
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
+class _Header(Element):
+    language: str
+    text: str
+    #─────────────────────────────────────────────────────────────────────────
+    def __str__(self) -> str:
+        language = str(self.language).strip().lower()
+        if language == 'yaml':
+            return f'---\n{self.text}\n---'
+        elif language == 'toml':
+            return f'+++\n{self.text}\n+++'
+        elif language == 'json':
+            return f';;;\n{self.text}\n;;;'
+        else:
+            return f'---{self.language}\n{self.text}\n---'
+#══════════════════════════════════════════════════════════════════════════════
+@dataclass(slots = True)
+class Document(IterableElement):
+    content: list = field(default_factory = list) # attribute name important
+    header_language_and_text: tuple[Any, Any] = field(default_factory = tuple) # type: ignore
+    #─────────────────────────────────────────────────────────────────────────
+    def __post_init__(self)  -> None:
+        self._validate_fields()
+        if len(self.header_language_and_text) not in (0, 2):
+            raise ValueError('Header and language must be specified together')
+    #─────────────────────────────────────────────────────────────────────────
+    def __add__(self, item):
+        if isinstance(item, self.__class__):
+            self.content += item.content
+        else:
+            self.content.append(item)
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def __iadd__(self, item):
+        return self.__add__(item)
+    #─────────────────────────────────────────────────────────────────────────
+    def __str__(self)  -> str:
+        content = [_clean_string(item) if isinstance(item, str) else item
+                   for item in self.content]
+        # Making heading
+        if self.header_language_and_text:
+            content.insert(0, _Header(*self.header_language_and_text))
+
+        references, footnotes = self._collect()
+
+        if footnotes: # Handling footnotes
+            footnotelines = []
+            for index, footnote in enumerate(footnotes, start = 1):
+                footnote._index = index
+                footnotelines.append(f'[^{index}]: {footnote.content}')
+            content.append('\n'.join(footnotelines))
+
+        if references: # Handling references
+            # generate reference targets
+            reftargets: dict[str, list[Link]] = defaultdict(list)
+            for link in references: # matching links to references
+                reftargets[f'<{link.url}> "{link.title}"'] += [link]
+            reflines = []
+            for index, (reftext, links) in enumerate(reftargets.items(), start = 1):
+                for link in links: # Adding indices to links and reftext
+                    link._index = index
+                reflines.append(f'[{index}]: {reftext}')
+            content.append('\n'.join(reflines))
+
+        # Creating TOC
+        headings = []
+        TOCs: dict[int, list[TOC]] = defaultdict(list)
+        top_level = 9
+        for item in self.content:
+            if isinstance(item, Heading) and item.in_TOC:
+                headings.append(item)
+                if item.level < top_level:
+                    top_level = item.level
+            elif isinstance(item, TOC):
+                TOCs[item.level] += [item]
+
+        if TOCs and headings:
+            refs: dict[str, int] = {}
+            TOCtexts: dict[int, list[str]] = defaultdict(list)
+            for heading in headings:
+                text, ref = _heading_ref_texts(heading.text)
+
+                if ref in refs: # Handling multiple same refs
+                    refs[ref] += 1
+                    ref += str(refs[ref]) 
+                else:
+                    refs[ref] = 0
+
+                line = '- '.join(((heading.level - top_level) * _INDENT,
+                                  f'[{text}]({ref})'))
+
+                for level in TOCs:
+                    if heading.level <= level:
+                        TOCtexts[level] += [line]
+
+            for level, toclist in TOCs.items():
+                text = '\n'.join(TOCtexts[level])
+                for toc in toclist:
+                    toc._text = text
+
+        return '\n\n'.join(str(item) for item in content)
 #══════════════════════════════════════════════════════════════════════════════
 # EXTENDED ELEMENTS
 
@@ -588,6 +606,7 @@ class Footnote(InlineElement):
 class Math(InlineElement):
     text: Any
     flavour: Flavour = GITHUB
+    #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         if self.flavour == GITHUB:
             return f'${self.text}$'
