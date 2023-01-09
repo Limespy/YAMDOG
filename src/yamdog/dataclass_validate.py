@@ -2,6 +2,11 @@
 from typing import (Any, Iterable, Optional, GenericAlias, # type: ignore
                      _UnionGenericAlias) # type: ignore
 
+
+def _basic(fieldtype, value, name: str) -> Optional[str]:
+    if not isinstance(value, fieldtype):
+        return f"'{name}' must be instance of type '{fieldtype.__name__}', not '{type(value).__name__}.'"
+
 def _tuple(types, value, name: str) -> Optional[str]:
     if not types and not value:
         return
@@ -11,6 +16,15 @@ def _tuple(types, value, name: str) -> Optional[str]:
     errormessages = []
     for _type, subvalue in zip(types, value):
         errormessage = _validate(_type, subvalue, name)
+        if errormessage is not None:
+            errormessages.append(errormessage)
+    if errormessages:
+        return ' '.join(errormessages)
+
+def _set(fieldtype, values, name: str) -> Optional[str]:
+    errormessages = []
+    for item in values:
+        errormessage = _validate(fieldtype, item, name)
         if errormessage is not None:
             errormessages.append(errormessage)
     if errormessages:
@@ -31,6 +45,20 @@ def _dict(types: tuple[type, type], value, name: str) -> Optional[str]:
     if errormessages:
         return ' '.join(errormessages)
 
+def _generic_alias(fieldtype, value, name: str) -> Optional[str]:
+    basetype = fieldtype.__origin__
+
+    if (errormessage := _basic(basetype, value, name)) is not None:
+        return errormessage
+    if basetype is tuple:
+        return _tuple(fieldtype.__args__, value, name)
+    elif basetype is list and value:
+        return _validate(fieldtype.__args__[0], value[0], name)
+    elif basetype is set and value:
+        return _set(fieldtype.__args__[0], value, name)
+    elif basetype is dict and value:
+        return _dict(fieldtype.__args__, value, name)
+
 def _union(types: tuple[type, ...], value, name: str) -> Optional[str]:
     errormessages = []
     for _type in types:
@@ -45,33 +73,6 @@ def _iterable(value) -> Optional[str]:
     if not hasattr(value, '__iter__'):
         return f"'{type(value).__name__}' object is not iterable"
 
-
-def _generic_alias(fieldtype, value, name: str) -> Optional[str]:
-    basetype = fieldtype.__origin__
-
-    if (errormessage := _basic(basetype, value, name)) is not None:
-        return errormessage
-    if basetype is tuple:
-        return _tuple(fieldtype.__args__, value, name)
-    elif basetype is list and value:
-        return _validate(fieldtype.__args__[0], value[0], name)
-    elif basetype is set and value:
-        errormessages = []
-        _type = fieldtype.__args__[0]
-        for item in value:
-            errormessage = _validate(_type, item, name)
-            if errormessage is not None:
-                errormessages.append(errormessage)
-        if errormessages:
-            return ' '.join(errormessages)
-        return
-    elif basetype is dict:
-        return _dict(fieldtype.__args__, value, name)
-
-def _basic(fieldtype, value, name: str) -> Optional[str]:
-    if not isinstance(value, fieldtype):
-        return f"Parameter '{name}' must be instance of type '{fieldtype.__name__}', not '{type(value).__name__}.'"
-
 def _validate(fieldtype, value, name: str) -> Optional[str]:
     if fieldtype == Any:
         return
@@ -83,7 +84,6 @@ def _validate(fieldtype, value, name: str) -> Optional[str]:
         return _generic_alias(fieldtype, value, name)
     if isinstance(fieldtype, type):
         return _basic(fieldtype, value, name)
-
 
 def _validate_fields(obj) -> None:
     '''Checks types of the attributes of the class

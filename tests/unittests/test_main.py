@@ -39,11 +39,13 @@ def test_text_style_edit():
     assert md.HIGHLIGHT not in text.unhighlight().style
     assert not text.style
     text.superscribe()
+    assert md.SUPERSCRIPT in text.style
     assert md.SUBSCRIPT in text.subscribe().style
     assert md.SUPERSCRIPT not in text.style
     assert md.SUBSCRIPT not in text.unsubscribe().style
     assert not text.style
     text.subscribe()
+    assert md.SUBSCRIPT in text.style
     assert md.SUPERSCRIPT in text.superscribe().style
     assert md.SUBSCRIPT not in text.style
     assert md.SUPERSCRIPT not in text.unsuperscribe().style
