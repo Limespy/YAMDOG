@@ -5,9 +5,9 @@ test
 # Overview of YAMDOG <!-- omit in toc -->
 
 [![PyPI Package latest release](https://img.shields.io/pypi/v/yamdog.svg)][1]
-[![PyPI Wheel](https://img.shields.io/pypi/wheel/yamdog.svg)][2]
-[![Supported versions](https://img.shields.io/pypi/pyversions/yamdog.svg)][3]
-[![Supported implementations](https://img.shields.io/pypi/implementation/yamdog.svg)][4]
+[![PyPI Wheel](https://img.shields.io/pypi/wheel/yamdog.svg)][1]
+[![Supported versions](https://img.shields.io/pypi/pyversions/yamdog.svg)][1]
+[![Supported implementations](https://img.shields.io/pypi/implementation/yamdog.svg)][1]
 
 Yet Another Markdown Only Generator
 
@@ -105,7 +105,7 @@ heading = md.Heading(3, 'Example heading')
 
 ~~striken text~~
 
-***~~All styles combined~~***
+*~~**All styles combined**~~*
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})
@@ -684,4 +684,4 @@ if __name__ == '__main__':
     main()
 ```
 
-[1]: <https://pypi.org/project/yamdog> "" [2]: <https://pypi.org/project/yamdog> "" [3]: <https://pypi.org/project/yamdog> "" [4]: <https://pypi.org/project/yamdog> ""
+[1]: <https://pypi.org/project/yamdog> ""
