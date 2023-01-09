@@ -1,7 +1,3 @@
----
-test
----
-
 # Overview of YAMDOG <!-- omit in toc -->
 
 [![PyPI Package latest release](https://img.shields.io/pypi/v/yamdog.svg)][1]
@@ -105,7 +101,7 @@ heading = md.Heading(3, 'Example heading')
 
 ~~striken text~~
 
-***~~All styles combined~~***
+~~***All styles combined***~~
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})
@@ -465,8 +461,7 @@ def main():
         f'''{name} is toolkit for creating Markdown text using Python.
 Markdown is a light and relatively simple markup language.''',
         md.TOC()
-        ],
-        ('yaml', 'test')
+        ]
     )
 
     quick_start_guide = md.Document([

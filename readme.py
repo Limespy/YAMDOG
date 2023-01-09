@@ -31,8 +31,7 @@ def main():
         f'''{name} is toolkit for creating Markdown text using Python.
 Markdown is a light and relatively simple markup language.''',
         md.TOC()
-        ],
-        ('yaml', 'test')
+        ]
     )
 
     quick_start_guide = md.Document([
