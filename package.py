@@ -132,6 +132,7 @@ build_info['classifiers']   = [
 #───────────────────────────────────────────────────────────────────────
 # Project URLs
 build_info['urls'] = {
+    'Homepage': URL,
     'Changelog': f'{GITHUB_MAIN_URL}{PATH_README.name}#Changelog',
     'Issue Tracker': f'{URL}/issues'}
 #───────────────────────────────────────────────────────────────────────
