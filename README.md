@@ -105,7 +105,7 @@ heading = md.Heading(3, 'Example heading')
 
 ~~striken text~~
 
-*~~**All styles combined**~~*
+***~~All styles combined~~***
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})
