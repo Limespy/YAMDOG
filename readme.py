@@ -27,11 +27,13 @@ def main():
         md.Heading(1, f'Overview of {name}', False, False),
         md.Paragraph(pypi_badges, '\n'),
         'Yet Another Markdown Only Generator',
-        md.Heading(2, f'What is {name}?'),
+        md.Heading(2, f'What is {name}?', False, False),
         f'''{name} is toolkit for creating Markdown text using Python.
-Markdown is a light and relatively simple markup language.'''
+Markdown is a light and relatively simple markup language.''',
+        md.TOC()
         ]
     )
+
     quick_start_guide = md.Document([
         md.Heading(1, 'Quick start guide'),
         "Here's how you can start automatically generating Markdown documents",
@@ -41,8 +43,16 @@ Markdown is a light and relatively simple markup language.'''
         f'''Install {name} with pip.
 {name} uses only Python standard library so it has no additional dependencies.''',
         md.CodeBlock(f'pip install {pypiname}'),
-        md.Heading(2, 'The notation'),
-        'Read the notation'
+        md.Heading(2, 'Using the package'),
+        f'There are two main things to building a Markdown document using {name}',
+        md.Listing(md.ORDERED, ['Making elements',
+                               'Combining elements into a document']),
+        md.Paragraph(['You can call ',
+            md.Code('str'),
+            ' on the element directly to get the markdown source']),
+        md.CodeBlock('markdown_source = str(element)', 'python'),
+        'but most of the time you will compose the elements together into an document',
+        md.CodeBlock('markdown_source = str(document)', 'python')
         ])
 
     # EXAMPLES
@@ -57,8 +67,12 @@ Markdown is a light and relatively simple markup language.'''
     ext_syntax_link = md.Link('extended syntax',
                               'https://www.markdownguide.org/basic-syntax/',
                               '')
+    doc += md.HRule()
+    doc += md.Heading(1, 'Annexes')
+    doc += md.Heading(2, 'Annex 1: README Python source')
     doc += '''And here the full source code that wrote this README.
 This can serve as a more advanced example of what this is capable of.'''
+    doc += md.Link('The python file can also be found here', 'https://github.com/Limespy/YAMDOG/blob/main/readme.py')
     doc += md.CodeBlock(source, 'python')
 
     (pathlib.Path(__file__).parent / 'README.md').write_text(str(doc), 'utf8')
@@ -75,18 +89,18 @@ def make_examples(source: str) -> md.Document:
 
     def get_example(title: str, element: md.Element) -> md.Document:
         return md.Document([md.Heading(4, title.capitalize()),
-                            md.Text('Python Source', {'italic'}),
+                            md.Text('Python source', {md.ITALIC}),
                             examples[title],
-                            md.Text('Markdown Source', {'italic'}),
+                            md.Text('Markdown source', {md.ITALIC}),
                             md.CodeBlock(element, 'markdown'),
-                            md.Text('Rendered Result', {'italic'}),
+                            md.Text('Rendered result', {md.ITALIC}),
                             element,
                             md.HRule()])
 
     # Starting the actual doc
     doc = md.Document([
-        md.Heading(3, 'Examples'),
-        'Here examples of what each element does.'
+        md.Heading(3, 'Making elements'),
+
     ])
 
     #%% document
@@ -104,11 +118,11 @@ def make_examples(source: str) -> md.Document:
     doc += get_example('heading', heading)
 
     #%% stylised
-    bold_text = md.Text('bolded text', {'bold'})
-    italiced_text = md.Text('some italiced text', {'italic'})
-    strikethrough_text = md.Text('striken text', {'strikethrough'})
+    bold_text = md.Text('bolded text', {md.BOLD})
+    italiced_text = md.Text('some italiced text', {md.ITALIC})
+    strikethrough_text = md.Text('striken text', {md.STRIKETHROUGH})
     all_together = md.Text('All styles combined',
-                                   {'bold', 'italic', 'strikethrough'})
+                                   {md.BOLD, md.ITALIC, md.STRIKETHROUGH})
 
     doc += bold_text
     doc += italiced_text
@@ -119,23 +133,23 @@ def make_examples(source: str) -> md.Document:
 
     #%%  paragraph
     paragraph = md.Paragraph(['Example paragraph containing ',
-                              md.Text('bolded text', {'bold'})])
+                              md.Text('bolded text', {md.BOLD})])
 
     doc += get_example('paragraph', paragraph)
 
     #%% table
-    table = md.Table(['First column', 'Second column', 'third column'],
-                     ['right', 'left', 'center'],
+    table = md.Table(['First column', 'Second column', 'Third column'],
                      [['a', 1, 'Python'],
-                      ['b', 2, 'Markdown']])
+                      ['b', 2, 'Markdown']],
+                     [md.RIGHT, md.LEFT, md.CENTER])
 
     doc += get_example('table', table)
 
     #%% compact table
-    table = md.Table(['First column', 'Second column', 'third column'],
-                     ['right', 'left', 'center'],
+    table = md.Table(['First column', 'Second column', 'Third column'],
                      [['a', 1, 'Python'],
                       ['b', 2, 'Markdown']],
+                     [md.RIGHT, md.LEFT, md.CENTER],
                      True)
 
     doc += 'You can select compact mode at the table object creation'
@@ -149,14 +163,18 @@ def make_examples(source: str) -> md.Document:
     doc += examples['table compact attribute']
 
     #%% listing
-    listing = md.Listing('unordered', 
+    listing = md.Listing(md.UNORDERED, 
                          ['Just normal text',
-                          md.Text('some stylised text', {'italic'}),
+                          md.Text('some stylised text', {md.ITALIC}),
+                          md.Checkbox(False, 'Listings can include checkboxes'),
+                          md.Checkbox(True, 'Checked and unchecked option available'),
                           ('Sublist by using a tuple',
-                            md.Listing('ordered',
+                            md.Listing(md.ORDERED,
                                       ['first', 'second']))])
 
     doc += get_example('listing', listing)
+
+    #%% checklist
 
 
     #%% link
@@ -187,6 +205,43 @@ def make_examples(source: str) -> md.Document:
     quoteblock = md.QuoteBlock('Quote block supports\nmultiple lines')
 
     doc += get_example('quote block', quoteblock)
+
+    doc += md.Heading(3, 'Combining elements into a document')
+
+    #%% calling document
+    document = md.Document([heading, link, paragraph, listing])
+
+    doc += 'Initialising Document with list of elements'
+    doc += examples['calling document']
+
+    #%% from empty document
+    document = md.Document()
+    document += heading
+    document += link
+    document += paragraph
+    document += listing
+
+    doc += 'adding elements into a document'
+    doc += examples['from empty document']
+
+    #%% document by adding
+    document = heading + link + paragraph + listing
+
+    doc += 'adding elements together into a document'
+    doc += examples['document by adding']
+
+    #%% document concatenation
+    document1 = md.Document([heading, link])
+    document2 = md.Document([paragraph, listing])
+    document = document1 + document2
+
+    doc += 'Adding two documents together'
+    doc += examples['document concatenation']
+
+    doc += md.Text('Markdown source', {md.ITALIC})
+    doc += md.CodeBlock(document, 'markdown')
+    doc += md.Text('Rendered result', {md.ITALIC})
+    doc += document
 
     return doc
 

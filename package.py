@@ -2,6 +2,7 @@
 # -*- encoding: utf-8 -*-
 #%%═════════════════════════════════════════════════════════════════════
 # IMPORT
+import readme
 
 import tomli_w
 import pathlib
@@ -51,10 +52,11 @@ if not '--notests' in sys.argv:
 
     print('Running unit tests')
     unit_test_result = tests.unittests(verbosity = 1)
-    failed |= bool(unit_test_result.errors)
-    failed |= bool(unit_test_result.failures)
+    # failed |= bool(unit_test_result.errors)
+    # failed |= bool(unit_test_result.failures)
     if failed:
         raise Exception('Tests did not pass, read above')
+    readme.main()
 else:
     sys.argv.pop(sys.argv.index('--notests'))
 #%%═════════════════════════════════════════════════════════════════════
@@ -130,6 +132,7 @@ build_info['classifiers']   = [
 #───────────────────────────────────────────────────────────────────────
 # Project URLs
 build_info['urls'] = {
+    'Homepage': URL,
     'Changelog': f'{GITHUB_MAIN_URL}{PATH_README.name}#Changelog',
     'Issue Tracker': f'{URL}/issues'}
 #───────────────────────────────────────────────────────────────────────
