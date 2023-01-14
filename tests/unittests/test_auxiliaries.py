@@ -75,7 +75,7 @@ def test_collect_iter():
     (('json', 'test'),  ';;;\ntest\n;;;'),
     (('php', 'test'),   '---php\ntest\n---')])
 def test_header_str(args, expected):
-    assert str(md._Header(*args)) == expected
+    assert str(md._process_header(*args)) == expected
 #══════════════════════════════════════════════════════════════════════════════
 # _pad
 def test_pad_raises_valueerror():

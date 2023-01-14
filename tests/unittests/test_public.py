@@ -126,6 +126,10 @@ def test_listing_str(args, expected):
 ])
 def test_checkbox_str(args, expected):
     assert str(md.Checkbox(*args)) == expected
+#──────────────────────────────────────────────────────────────────────────────
+def test_checkbox_add_raises_type_error():
+    with pytest.raises(TypeError):
+        md.Checkbox(True, 'test') + md.Checkbox(False, 'test')
 #══════════════════════════════════════════════════════════════════════════════
 # make_checklist
 def test_make_cheklist_return_listing():
@@ -255,7 +259,7 @@ def test_document_str_simple(args):
         expected = [md._clean_string(item) if isinstance(item, str) else str(item)
                     for item in args[0]]
     if len(args) == 2:
-        expected.insert(0, str(md.Header(*args[1])))
+        expected.insert(0, md._process_header(*args[1]))
 
     assert str(md.Document(*args)) == '\n\n'.join(expected)
 #──────────────────────────────────────────────────────────────────────────────
@@ -265,7 +269,7 @@ def test_document_str_simple(args):
                                   (['test'], ('php', 'test'))])
 def test_document_str_header(args):
 
-    expected = [str(md._Header(*args[1]))]
+    expected = [md._process_header(*args[1])]
     expected += [md._clean_string(item) if isinstance(item, str) else str(item)
                     for item in args[0]]
 
@@ -274,7 +278,7 @@ def test_document_str_header(args):
 @pytest.mark.parametrize("args", [([], ('yaml',)),
                                   ([], ('toml', 'test', 'test'))])
 def test_document_header_invalid(args):
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         md.Document(*args)
 #──────────────────────────────────────────────────────────────────────────────
 def test_document_str_footnotes():

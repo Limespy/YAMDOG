@@ -16,15 +16,15 @@ import re as _re
 import string as _string 
 import sys
 from typing import Union as U
-from typing import Any, Generator, Iterable # type: ignore
+from typing import Any, Generator, Iterable
 
 # To skip using slots on python 3.9
 if sys.version_info[1] <= 9:
-    def _dataclass(*args, **kwargs):
-        kwargs.pop('slots', None)
-        return _dataclass_std(*args, **kwargs)
-else:
-    _dataclass = _dataclass_std
+    def _dataclass(*args, **kwargs):                  # pragma: no cover
+        kwargs.pop('slots', None)                     # pragma: no cover
+        return _dataclass_std(*args, **kwargs)        # pragma: no cover
+else:                                                 # pragma: no cover
+    _dataclass = _dataclass_std                       # pragma: no cover
 #══════════════════════════════════════════════════════════════════════════════
 # AUXILIARIES
 _INDENT = '    '
@@ -345,8 +345,8 @@ class Link(InlineElement):
 #══════════════════════════════════════════════════════════════════════════════
 # Table
 def _pad(items: list[str],
-        widths: Iterable[int],
-        alignments: Iterable[Alignment]
+         widths: Iterable[int],
+         alignments: Iterable[Alignment]
          ) -> Generator[str, None, None]:
     for alignment, item, width in zip(alignments, items, widths):
         if alignment == LEFT:
@@ -506,36 +506,11 @@ class TOC(Element):
     def __str__(self) -> str:
         return self._text
 #══════════════════════════════════════════════════════════════════════════════
-def _translate(text, *args):
-    return str(text).translate(''.maketrans(*args))
-#══════════════════════════════════════════════════════════════════════════════
-def _heading_ref_texts(text: str) -> tuple[str, str]:
-    '''Generates visible link text and internal link target'''
-    return (_translate(text, '', '', '[]'),
-            '#' + _translate(text, ' ', '-', _string.punctuation).lower())
-#══════════════════════════════════════════════════════════════════════════════
-def _process_footnotes(footnotes: dict[Footnote, None]):
-    footnotelines = []
-    for index, footnote in enumerate(footnotes, start = 1):
-        footnote._index = index
-        footnotelines.append(f'[^{index}]: {footnote.content}')
-    return '\n'.join(footnotelines)
-#══════════════════════════════════════════════════════════════════════════════
-def _process_references(references: dict[Link, None]) -> str:
-    reftargets: dict[str, list[Link]] = defaultdict(list)
-    for link in references: # matching links to references
-        reftargets[f'<{link.target}> "{link.title}"'] += [link]
-    reflines = []
-    for index, (reftext, links) in enumerate(reftargets.items(), start = 1):
-        for link in links: # Adding indices to links and reftext
-            link._index = index
-        reflines.append(f'[{index}]: {reftext}')
-    return '\n'.join(reflines)
-#══════════════════════════════════════════════════════════════════════════════
 def _preprocess(content: Iterable
                 ) -> tuple[list,
                            dict[int, list],
-                           tuple[int, list],
+                           int,
+                           list,
                            dict[Link, None],
                            dict[Footnote, None]]:
     '''Iterates through document tree and collects
@@ -565,33 +540,73 @@ def _preprocess(content: Iterable
                 if _is_collectable(item):
                     for old, new in zip(items, item._collect()):
                         old |= new
-    return new_content, TOCs, (top_level, headings), *items
+    return new_content, TOCs, top_level, headings, *items
 #══════════════════════════════════════════════════════════════════════════════
-@_dataclass(slots = True) # type: ignore
-class _Header(Element):
-    language: str
-    content: str
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self) -> str:
-        language = str(self.language).strip().lower()
-        if language == 'yaml':
-            return f'---\n{self.content}\n---'
-        elif language == 'toml':
-            return f'+++\n{self.content}\n+++'
-        elif language == 'json':
-            return f';;;\n{self.content}\n;;;'
+def _process_footnotes(footnotes: dict[Footnote, None]):
+    footnotelines = []
+    for index, footnote in enumerate(footnotes, start = 1):
+        footnote._index = index
+        footnotelines.append(f'[^{index}]: {footnote.content}')
+    return '\n'.join(footnotelines)
+#══════════════════════════════════════════════════════════════════════════════
+def _process_references(references: dict[Link, None]) -> str:
+    reftargets: dict[str, list[Link]] = defaultdict(list)
+    for link in references: # matching links to references
+        reftargets[f'<{link.target}> "{link.title}"'] += [link]
+    reflines = []
+    for index, (reftext, links) in enumerate(reftargets.items(), start = 1):
+        for link in links: # Adding indices to links and reftext
+            link._index = index
+        reflines.append(f'[{index}]: {reftext}')
+    return '\n'.join(reflines)
+#══════════════════════════════════════════════════════════════════════════════
+def _process_header(language, content) -> str:
+    language = str(language).strip().lower()
+    if language == 'yaml':
+        return f'---\n{content}\n---'
+    elif language == 'toml':
+        return f'+++\n{content}\n+++'
+    elif language == 'json':
+        return f';;;\n{content}\n;;;'
+    else:
+        return f'---{language}\n{content}\n---'
+#══════════════════════════════════════════════════════════════════════════════
+def _translate(text, *args):
+    return str(text).translate(''.maketrans(*args))
+#══════════════════════════════════════════════════════════════════════════════
+def _heading_ref_texts(text: str) -> tuple[str, str]:
+    '''Generates visible link text and internal link target'''
+    return (_translate(text, '', '', '[]'),
+            '#' + _translate(text, ' ', '-', _string.punctuation).lower())
+#══════════════════════════════════════════════════════════════════════════════
+def _process_TOC(TOCs, headings, top_level) -> None:
+    reftexts: dict[str, int] = {}
+    TOCtexts: dict[int, list[str]] = defaultdict(list) # {level: texts}
+    for heading in headings:
+        text, ref = _heading_ref_texts(heading.content)
+
+        if ref in reftexts: # Handling multiple same refs
+            reftexts[ref] += 1
+            ref += str(reftexts[ref]) 
         else:
-            return f'---{self.language}\n{self.content}\n---'
+            reftexts[ref] = 0
+
+        line = '- '.join(((heading.level - top_level) * _INDENT,
+                            f'[{text}]({ref})'))
+
+        for level in TOCs:
+            if heading.level <= level:
+                TOCtexts[level] += [line]
+
+    for level, toclist in TOCs.items(): # Adding appropriate texts
+        text = '\n'.join(TOCtexts[level])
+        for toc in toclist:
+            toc._text = text
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(slots = True) # type: ignore
 class Document(IterableElement):
     content: list = _field(default_factory = list) # attribute name important
     header_language_and_text: U[tuple[()], tuple[Any, Any]] = _field(default_factory = tuple) # type: ignore
-    #─────────────────────────────────────────────────────────────────────────
-    def __post_init__(self)  -> None:
-        _validate_fields(self)
-        if len(self.header_language_and_text) not in (0, 2):
-            raise ValueError('Header and language must be specified together')
     #─────────────────────────────────────────────────────────────────────────
     def __add__(self, item):
         if isinstance(item, self.__class__):
@@ -604,10 +619,10 @@ class Document(IterableElement):
         return self.__add__(item)
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self)  -> str:
-        content, TOCs, (top_level, headings), refs, footnotes = _preprocess(self.content)
+        content, TOCs, top_level, headings, refs, footnotes = _preprocess(self.content)
         # Making heading
         if self.header_language_and_text:
-            content.insert(0, _Header(*self.header_language_and_text)) # type: ignore
+            content.insert(0, _process_header(*self.header_language_and_text))
 
         if footnotes: # Handling footnotes
             content.append(_process_footnotes(footnotes))
@@ -615,29 +630,7 @@ class Document(IterableElement):
         if refs: # Handling link references
             content.append(_process_references(refs))
 
-        # Creating TOC
-        if TOCs and headings:
-            reftexts: dict[str, int] = {}
-            TOCtexts: dict[int, list[str]] = defaultdict(list) # {level: texts}
-            for heading in headings:
-                text, ref = _heading_ref_texts(heading.content)
-
-                if ref in reftexts: # Handling multiple same refs
-                    reftexts[ref] += 1
-                    ref += str(reftexts[ref]) 
-                else:
-                    reftexts[ref] = 0
-
-                line = '- '.join(((heading.level - top_level) * _INDENT,
-                                  f'[{text}]({ref})'))
-
-                for level in TOCs:
-                    if heading.level <= level:
-                        TOCtexts[level] += [line]
-
-            for level, toclist in TOCs.items():
-                text = '\n'.join(TOCtexts[level])
-                for toc in toclist:
-                    toc._text = text
+        if TOCs and headings: # Creating TOC
+            _process_TOC(TOCs, headings, top_level)
 
         return '\n\n'.join(str(item) for item in content)
