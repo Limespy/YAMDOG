@@ -77,7 +77,13 @@ def test_collect_iter():
 def test_header_str(args, expected):
     assert str(md._Header(*args)) == expected
 #══════════════════════════════════════════════════════════════════════════════
-# pad
+# _pad
 def test_pad_raises_valueerror():
     with pytest.raises(ValueError):
-        list(md.pad(['a', 'b'], [3, 3], [md.LEFT, 'left']))
+        list(md._pad(['a', 'b'], [3, 3], [md.LEFT, 'left']))
+#══════════════════════════════════════════════════════════════════════════════
+# _markers
+def test_markers():
+    for style in md.TextStyle:
+        assert style in md._markers
+

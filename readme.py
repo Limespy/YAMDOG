@@ -29,7 +29,7 @@ def main():
         'Yet Another Markdown Only Generator',
         md.Heading(2, f'What is {name}?', False, False),
         f'''{name} is toolkit for creating Markdown text using Python.
-Markdown is a light and relatively simple markup language.''',
+        Markdown is a light and relatively simple markup language.''',
         md.TOC()
         ]
     )
@@ -41,7 +41,7 @@ Markdown is a light and relatively simple markup language.''',
         '',
         md.Heading(3, 'Install'),
         f'''Install {name} with pip.
-{name} uses only Python standard library so it has no additional dependencies.''',
+        {name} uses only Python standard library so it has no additional dependencies.''',
         md.CodeBlock(f'pip install {pypiname}'),
         md.Heading(2, 'Using the package'),
         f'There are two main things to building a Markdown document using {name}',
@@ -71,10 +71,10 @@ Markdown is a light and relatively simple markup language.''',
     doc += md.Heading(1, 'Annexes')
     doc += md.Heading(2, 'Annex 1: README Python source')
     doc += '''And here the full source code that wrote this README.
-This can serve as a more advanced example of what this is capable of.'''
+            This can serve as a more advanced example of what this is capable of.'''
     doc += md.Link('The python file can also be found here', 'https://github.com/Limespy/YAMDOG/blob/main/readme.py')
     doc += md.CodeBlock(source, 'python')
-
+    
     (pathlib.Path(__file__).parent / 'README.md').write_text(str(doc), 'utf8')
 
 def make_examples(source: str) -> md.Document:
@@ -121,12 +121,15 @@ def make_examples(source: str) -> md.Document:
     bold_text = md.Text('bolded text', {md.BOLD})
     italiced_text = md.Text('some italiced text', {md.ITALIC})
     strikethrough_text = md.Text('striken text', {md.STRIKETHROUGH})
+    highlighted_text = md.Text('highlighted text', {md.HIGHLIGHT})
     all_together = md.Text('All styles combined',
-                                   {md.BOLD, md.ITALIC, md.STRIKETHROUGH})
+                                   {md.BOLD, md.ITALIC,
+                                    md.STRIKETHROUGH, md.HIGHLIGHT})
 
     doc += bold_text
     doc += italiced_text
     doc += strikethrough_text
+    doc += highlighted_text
     doc += all_together
     doc += examples['stylised']
     doc += md.HRule()

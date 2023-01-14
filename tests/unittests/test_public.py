@@ -7,8 +7,8 @@ import pytest
     (('test',{md.BOLD}), '**test**'),
     (('test',{md.ITALIC}), '*test*'),
     (('test',{md.STRIKETHROUGH}), '~~test~~'),
-    (('test',{md.SUPERSCRIPT}), '^test^'),
-    (('test',{md.SUBSCRIPT}), '~test~'),
+    (('test',set(), 1), '^test^'),
+    (('test',set(), -1), '~test~'),
     (('test',{md.HIGHLIGHT}), '==test=='),
     (('test',{md.BOLD, md.ITALIC}), '***test***')
 ])
@@ -21,7 +21,7 @@ def test_text_invalid_style():
 #──────────────────────────────────────────────────────────────────────────────
 def test_text_superscrip_subscipt():
     with pytest.raises(ValueError):
-        md.Text('test', {md.SUPERSCRIPT, md.SUBSCRIPT})
+        md.Text('test', set(), -3)
 #──────────────────────────────────────────────────────────────────────────────
 def test_text_style_edit():
     text = md.Text('test')
@@ -39,17 +39,11 @@ def test_text_style_edit():
     assert md.HIGHLIGHT not in text.unhighlight().style
     assert not text.style
     text.superscribe()
-    assert md.SUPERSCRIPT in text.style
-    assert md.SUBSCRIPT in text.subscribe().style
-    assert md.SUPERSCRIPT not in text.style
-    assert md.SUBSCRIPT not in text.unsubscribe().style
-    assert not text.style
-    text.subscribe()
-    assert md.SUBSCRIPT in text.style
-    assert md.SUPERSCRIPT in text.superscribe().style
-    assert md.SUBSCRIPT not in text.style
-    assert md.SUPERSCRIPT not in text.unsuperscribe().style
-    assert not text.style
+    assert text.subscribe().level == -1
+    assert text.superscribe().level == 1
+    assert text.normal().level == 0
+    text.bold().italicize().highlight()
+    assert not text.clear().style
 #══════════════════════════════════════════════════════════════════════════════
 # Paragraph
 @pytest.mark.parametrize("args,expected", [
@@ -99,6 +93,21 @@ def test_heading_str(args, expected):
 def test_heading_raises_valueerror():
     with pytest.raises(ValueError):
         md.Heading(0, 'test')
+#══════════════════════════════════════════════════════════════════════════════
+# Link
+@pytest.mark.parametrize('args1,args2',
+                         (((1, 2), (1, 2)),
+                          ((1, 2), ('1', 2)),
+                          ((1, 2, 3), (1, 2, 3)),
+                          ((1, 2, 3, 4), (1, 2, 3, 5))))
+def test_link_same_hash(args1, args2):
+    assert hash(md.Link(*args1)) == hash(md.Link(*args2))
+#──────────────────────────────────────────────────────────────────────────────
+@pytest.mark.parametrize('args1,args2',
+                         (((1, 1), (1, 2)),
+                          ((1, 2, 1), (1, 2, 3))))
+def test_link_different_hash(args1, args2):
+    assert hash(md.Link(*args1)) != hash(md.Link(*args2))
 #══════════════════════════════════════════════════════════════════════════════
 # Listing
 @pytest.mark.parametrize("args,expected", [
@@ -283,24 +292,24 @@ def test_document_str_references():
     link3 = md.Link('different text', 'url1', 'title1')
     doc = md.Document([link0, link1, link2, link3])
     expected = [str(link0), 
-                f'[{link1.text}][1]',
-                f'[{link2.text}][2]',
-                f'[{link3.text}][1]']
-    expected += [f'[1]: <{link1.url}> "{link1.title}"\n[2]: <{link2.url}> "{link2.title}"']
-    assert link1.url == link3.url and link1.title == link3.title
+                f'[{link1.content}][1]',
+                f'[{link2.content}][2]',
+                f'[{link3.content}][1]']
+    expected += [f'[1]: <{link1.target}> "{link1.title}"\n[2]: <{link2.target}> "{link2.title}"']
+    assert link1.target == link3.target and link1.title == link3.title
     assert str(doc) == '\n\n'.join(expected)
 #──────────────────────────────────────────────────────────────────────────────
 def test_document_toc():
     headings = [md.Heading(i, f'h{i}') for i in range(1,6,1)]
     # creating example
-    reftext, ref = md._heading_ref_texts(headings[3].text) # level up to 4
+    reftext, ref = md._heading_ref_texts(headings[3].content) # level up to 4
 
     listing = md.Listing(md.UNORDERED, [md.Link(reftext, ref)])
     for heading in reversed(headings[:3]):
-        reftext, ref = md._heading_ref_texts(heading.text)
+        reftext, ref = md._heading_ref_texts(heading.content)
         listing = md.Listing(md.UNORDERED, [(md.Link(reftext, ref), listing)])
     # Testing duplicate headers
-    reftext, ref = md._heading_ref_texts(headings[0].text)
+    reftext, ref = md._heading_ref_texts(headings[0].content)
     listing.content.append(md.Link(reftext, ref + '1'))
     headings.append(headings[0])
     assert str(md.Document([md.TOC()] + headings)).startswith(str(listing))
