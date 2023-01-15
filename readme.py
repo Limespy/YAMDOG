@@ -24,10 +24,10 @@ def main():
 
     # Starting the document
     metasection = md.Document([
-        md.Heading(1, f'Overview of {name}', False, False),
+        md.Heading(1, f'Overview of {name}', in_TOC = False),
         md.Paragraph(pypi_badges, '\n'),
         'Yet Another Markdown Only Generator',
-        md.Heading(2, f'What is {name}?', False, False),
+        md.Heading(2, f'What is {name}?', in_TOC = False),
         f'''{name} is toolkit for creating Markdown text using Python.
         Markdown is a light and relatively simple markup language.''',
         md.TOC()
@@ -113,7 +113,7 @@ def make_examples(source: str) -> md.Document:
     # document += 
 
     #%% heading
-    heading = md.Heading(3, 'Example heading')
+    heading = md.Heading(4, 'Example heading')
 
     doc += get_example('heading', heading)
 

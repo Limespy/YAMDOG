@@ -1,4 +1,7 @@
 
+from dataclasses import *
+_dataclass = dataclass
+del dataclass
 from typing import (Any, Iterable, Optional, GenericAlias, # type: ignore
                      _UnionGenericAlias) # type: ignore
 
@@ -75,3 +78,35 @@ def _validate_fields(obj, ExceptionType = TypeError) -> None:
             errormessages.append(f'{name}: {" ".join(messages)}')
     if errormessages:
         raise ExceptionType('\n'.join(errormessages))
+#──────────────────────────────────────────────────────────────────────────────
+def dataclass(cls=None, /, *, validate: Optional[str] = None, **kwargs):
+    '''Validate after 'init', 'post_init' or not at all (`None`)
+
+    Parameters
+    ----------
+    validate_after : Optional[str], default None
+        _description_, by 
+    '''
+
+    if validate is None:
+        return _dataclass(cls, **kwargs)
+    if not (validate == 'middle' or validate == 'last'):
+        raise ValueError(f'validate was {repr(validate)}')
+    # cls is None
+    dataclass_wrapper = _dataclass(cls, **kwargs)
+    def decoratorwrap(cls):
+        cls = dataclass_wrapper(cls)
+        method_name = ('__post_init__' if validate == 'last'
+                                            and hasattr(cls, '__post_init__')
+                        else '__init__')
+
+        original_method = getattr(cls, method_name)
+
+        def validation_wrap(self, *args, **kwargs) -> None:
+            original_method(self, *args, **kwargs)
+            _validate_fields(self)
+
+        setattr(cls, method_name, validation_wrap)
+
+        return cls
+    return decoratorwrap

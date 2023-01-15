@@ -5,10 +5,12 @@ Handles"""
 # IMPORT
 
 from .dataclass_validate import _validate_fields
+from .dataclass_validate import dataclass as _dataclass_orig
+from .dataclass_validate import field as _field
 
 from collections.abc import Sequence
 from collections import defaultdict
-from dataclasses import dataclass as _dataclass_std
+# from dataclasses import dataclass as _dataclass_std
 from dataclasses import field as _field
 import enum as _enum 
 import itertools as _itertools
@@ -19,12 +21,11 @@ from typing import Union as U
 from typing import Any, Generator, Iterable
 
 # To skip using slots on python 3.9
-if sys.version_info[1] <= 9:
-    def _dataclass(*args, **kwargs):                  # pragma: no cover
-        kwargs.pop('slots', None)                     # pragma: no cover
-        return _dataclass_std(*args, **kwargs)        # pragma: no cover
+if sys.version_info[1] <= 9: # absorbe keyword "slots"
+    def _dataclass(*args, slots = None, **kwargs):    # pragma: no cover
+        return _dataclass_orig(*args, **kwargs)        # pragma: no cover
 else:                                                 # pragma: no cover
-    _dataclass = _dataclass_std                       # pragma: no cover
+    _dataclass = _dataclass_orig                     # pragma: no cover
 #══════════════════════════════════════════════════════════════════════════════
 # AUXILIARIES
 _INDENT = '    '
@@ -85,16 +86,12 @@ def _collect_iter(items: Iterable) -> tuple[dict, dict]:
     for item in items:
         if _is_collectable(item):
             for old, new in zip(output, item._collect()):
-                print(old, new)
                 old |= new
     return output
 #══════════════════════════════════════════════════════════════════════════════
 # ELEMENTS BASE CLASSES
 @_dataclass(slots = True) # type: ignore
 class Element:
-    #─────────────────────────────────────────────────────────────────────────
-    def __post_init__(self) -> None:
-        _validate_fields(self)
     #─────────────────────────────────────────────────────────────────────────
     def __add__(self, other):
         return Document([self, other]) # type: ignore
@@ -123,7 +120,7 @@ class InlineElement(Element):
 # BASIC ELEMENTS
 
 #══════════════════════════════════════════════════════════════════════════════
-@_dataclass(slots = True) # type: ignore
+@_dataclass(slots = True, validate = 'middle') # type: ignore
 class Paragraph(IterableElement):
     content: list = _field(default_factory = list)
     separator: str = ''
@@ -146,7 +143,7 @@ _markers = {BOLD:          '**',
             ITALIC:        '*',
             STRIKETHROUGH: '~~',
             HIGHLIGHT:     '=='}
-@_dataclass(slots = True) # type: ignore
+@_dataclass(slots = True, validate = 'middle') # type: ignore
 class Text(ContainerElement, InlineElement):
     '''Stylised text
 
@@ -167,7 +164,6 @@ class Text(ContainerElement, InlineElement):
     level: int = 0 # Normal = 0, subscript = -1, superscipt = 1
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self):
-        _validate_fields(self)
         if not -1 <= self.level <= 1:
             raise ValueError(f'Text level must be 0, -1 or 1, not {self.level}')
     #─────────────────────────────────────────────────────────────────────────
@@ -238,7 +234,7 @@ class Text(ContainerElement, InlineElement):
 markers = {UNORDERED: (lambda : _itertools.repeat('- '), 2),
            ORDERED: (lambda : (f'{n}. ' for n in _itertools.count(1, 1)), 3),
            DEFINITION: (lambda : _itertools.repeat(': '), 2)}
-@_dataclass(slots = True) # type: ignore
+@_dataclass(slots = True, validate = 'middle') # type: ignore
 class Listing(IterableElement):
     style: ListingStyle
     content: Iterable
@@ -257,7 +253,7 @@ class Listing(IterableElement):
                                                          '\n'+ ' '* prefix_length))
         return '\n'.join(output)
 #══════════════════════════════════════════════════════════════════════════════
-@_dataclass(slots = True) # type: ignore
+@_dataclass(slots = True, validate = 'middle') # type: ignore
 class Checkbox(ContainerElement):
     checked: bool
     content: Any
@@ -277,7 +273,7 @@ class Checkbox(ContainerElement):
 def make_checklist(items: Iterable[tuple[bool, Any]]):
     return Listing(UNORDERED, (Checkbox(*item) for item in items)) # type: ignore
 #══════════════════════════════════════════════════════════════════════════════
-@_dataclass(slots = True) # type: ignore
+@_dataclass(slots = True, validate = 'middle') # type: ignore
 class Heading(ContainerElement):
     level: int
     content: Any
@@ -285,7 +281,6 @@ class Heading(ContainerElement):
     in_TOC: bool = True
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self) -> None:
-        _validate_fields(self)
         if self.level <= 0:
             raise ValueError(f'Level must be greater that 0, not {self.level}')
     #─────────────────────────────────────────────────────────────────────────
@@ -361,7 +356,7 @@ def _pad(items: list[str],
 #══════════════════════════════════════════════════════════════════════════════
 def _str_row_sparse(row: Iterable[str]):
     return '| ' + ' | '.join(row) + ' |'
-@_dataclass(slots = True) # type: ignore
+@_dataclass(slots = True, validate = 'middle') # type: ignore
 class Table(IterableElement):
     header: Iterable
     content: list[Sequence] = _field(default_factory = list)
@@ -448,7 +443,7 @@ class Footnote(InlineElement):
     def __str__(self) -> str:
         return f'[^{self._index}]'
 #══════════════════════════════════════════════════════════════════════════════
-@_dataclass(slots = True) # type: ignore
+@_dataclass(slots = True, validate = 'middle') # type: ignore
 class Math(InlineElement):
     text: Any
     flavour: Flavour = GITHUB
@@ -460,7 +455,7 @@ class Math(InlineElement):
             return f'$`{self.text}`$'
         raise ValueError(f'Flavour {self.flavour} not recognised')
 #══════════════════════════════════════════════════════════════════════════════
-@_dataclass(slots = True) # type: ignore
+@_dataclass(slots = True, validate = 'middle') # type: ignore
 class MathBlock(Element):
     text: Any
     flavour: Flavour = GITHUB
@@ -498,7 +493,7 @@ class Emoji(InlineElement):
     def __str__(self) -> str:
         return f':{self.code}:'
 #══════════════════════════════════════════════════════════════════════════════
-@_dataclass(slots = True) # type: ignore
+@_dataclass(slots = True, validate = 'middle') # type: ignore
 class TOC(Element):
     level: int = 4
     _text: str = ''
@@ -603,7 +598,7 @@ def _process_TOC(TOCs, headings, top_level) -> None:
         for toc in toclist:
             toc._text = text
 #══════════════════════════════════════════════════════════════════════════════
-@_dataclass(slots = True) # type: ignore
+@_dataclass(slots = True, validate = 'middle') # type: ignore
 class Document(IterableElement):
     content: list = _field(default_factory = list) # attribute name important
     header_language_and_text: U[tuple[()], tuple[Any, Any]] = _field(default_factory = tuple) # type: ignore

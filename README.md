@@ -12,25 +12,25 @@ Yet Another Markdown Only Generator
 YAMDOG is toolkit for creating Markdown text using Python. Markdown is a light and relatively simple markup language.
 
 - [Quick start guide](#quick-start-guide)
-  - [The first steps](#the-first-steps)
-    - [Install](#install)
-  - [Using the package](#using-the-package)
-    - [Making elements ^1](#making-elements-1)
-      - [Heading](#heading)
-    - [Example heading](#example-heading)
-      - [Paragraph](#paragraph)
-      - [Table](#table)
-      - [Compact table](#compact-table)
-      - [Listing](#listing)
-      - [Link](#link)
-      - [Codeblock](#codeblock)
-      - [Code](#code)
-      - [Address](#address)
-      - [Quote block](#quote-block)
-    - [Combining elements into a document](#combining-elements-into-a-document)
-    - [Example heading](#example-heading-1)
+    - [The first steps](#the-first-steps)
+        - [Install](#install)
+    - [Using the package](#using-the-package)
+        - [Making elements](#making-elements)
+            - [Heading](#heading)
+            - [Example heading](#example-heading)
+            - [Paragraph](#paragraph)
+            - [Table](#table)
+            - [Compact table](#compact-table)
+            - [Listing](#listing)
+            - [Link](#link)
+            - [Codeblock](#codeblock)
+            - [Code](#code)
+            - [Address](#address)
+            - [Quote block](#quote-block)
+        - [Combining elements into a document](#combining-elements-into-a-document)
+            - [Example heading](#example-heading1)
 - [Annexes](#annexes)
-  - [Annex 1: README Python source](#annex-1-readme-python-source)
+    - [Annex 1: README Python source](#annex-1-readme-python-source)
 
 # Quick start guide
 
@@ -67,7 +67,7 @@ but most of the time you will compose the elements together into an document
 markdown_source = str(document)
 ```
 
-### Making elements [^1]
+### Making elements
 
 Let's start with an empty document
 
@@ -80,18 +80,18 @@ document = md.Document()
 *Python source*
 
 ```python
-heading = md.Heading(3, 'Example heading')
+heading = md.Heading(4, 'Example heading')
 ```
 
 *Markdown source*
 
 ```markdown
-### Example heading
+#### Example heading
 ```
 
 *Rendered result*
 
-### Example heading
+#### Example heading
 
 ---
 
@@ -103,7 +103,7 @@ heading = md.Heading(3, 'Example heading')
 
 ==highlighted text==
 
-~~*==**All styles combined**==*~~
+**~~*==All styles combined==*~~**
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})
@@ -390,7 +390,7 @@ document = document1 + document2
 *Markdown source*
 
 ```markdown
-### Example heading
+#### Example heading
 
 [Link to Markdown Guide](https://www.markdownguide.org)
 
@@ -407,7 +407,7 @@ Example paragraph containing**bolded text**
 
 *Rendered result*
 
-### Example heading
+#### Example heading
 
 [Link to Markdown Guide](https://www.markdownguide.org)
 
@@ -458,10 +458,10 @@ def main():
 
     # Starting the document
     metasection = md.Document([
-        md.Heading(1, f'Overview of {name}', False, False),
+        md.Heading(1, f'Overview of {name}', in_TOC = False),
         md.Paragraph(pypi_badges, '\n'),
         'Yet Another Markdown Only Generator',
-        md.Heading(2, f'What is {name}?', False, False),
+        md.Heading(2, f'What is {name}?', in_TOC = False),
         f'''{name} is toolkit for creating Markdown text using Python.
         Markdown is a light and relatively simple markup language.''',
         md.TOC()
@@ -547,7 +547,7 @@ def make_examples(source: str) -> md.Document:
     # document += 
 
     #%% heading
-    heading = md.Heading(3, 'Example heading')
+    heading = md.Heading(4, 'Example heading')
 
     doc += get_example('heading', heading)
 
@@ -685,7 +685,5 @@ def make_examples(source: str) -> md.Document:
 if __name__ == '__main__':
     main()
 ```
-
-[^1]: hmm
 
 [1]: <https://pypi.org/project/yamdog> ""
