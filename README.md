@@ -103,7 +103,7 @@ heading = md.Heading(4, 'Example heading')
 
 ==highlighted text==
 
-**~~*==All styles combined==*~~**
+*~~==**All styles combined**==~~*
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})
@@ -485,7 +485,8 @@ def main():
             md.Code('str'),
             ' on the element directly to get the markdown source']),
         md.CodeBlock('markdown_source = str(element)', 'python'),
-        'but most of the time you will compose the elements together into an document',
+        '''but most of the time you will compose the elements together into an
+        document''',
         md.CodeBlock('markdown_source = str(document)', 'python')
         ])
 
@@ -505,7 +506,8 @@ def main():
     doc += md.Heading(1, 'Annexes')
     doc += md.Heading(2, 'Annex 1: README Python source')
     doc += '''And here the full source code that wrote this README.
-            This can serve as a more advanced example of what this is capable of.'''
+            This can serve as a more advanced example of what this is
+            capable of.'''
     doc += md.Link('The python file can also be found here', 'https://github.com/Limespy/YAMDOG/blob/main/readme.py')
     doc += md.CodeBlock(source, 'python')
     

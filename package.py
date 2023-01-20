@@ -12,6 +12,7 @@ import tomllib
 import sys
 
 if '--print' in sys.argv:
+    import pprint
     sys.argv.pop(sys.argv.index('--print'))
     is_verbose = True
 else:
@@ -158,24 +159,7 @@ with open(BASE_DIR / 'dependencies_dev.txt', encoding = 'utf8') as f:
 if is_verbose:
     for key, value in build_info.items():
         print(f'\n{header(key)}\n')
-        if isinstance(value, list):
-            print('[', end = '')
-            if value:
-                print(value[0], end = '')
-                for item in value[1:]:
-                    print(f',\n {item}', end = '')
-            print(']')
-        elif isinstance(value, dict):
-            print('{', end = '')
-            if value:
-                items = iter(value.items())
-                key2, value2 = next(items)
-                print(f'{key2}: {value2}', end = '')
-                for key2, value2 in items:
-                    print(f',\n {key2}: {value2}', end = '')
-            print('}')
-        else:
-            print(value)
+        pprint.pprint(value)
 #%%═════════════════════════════════════════════════════════════════════
 # RUNNING THE BUILD
 # print(build_info)

@@ -1,9 +1,10 @@
-from yamdog.dataclass_validate import _validate_fields
+from yamdog.dataclass_validate import dataclass
 
-from dataclasses import dataclass
 import pytest
 import typing
+from collections import abc
 
+#══════════════════════════════════════════════════════════════════════════════
 def _check(cls, args, index, value):
     args = args.copy()
     args[index] = value
@@ -12,16 +13,12 @@ def _check(cls, args, index, value):
 #──────────────────────────────────────────────────────────────────────────────
 def _index_value(args):
     return ((i, value) for i, value in enumerate(args))
-@dataclass
-class Validated:
-    def __post_init__(self):
-        _validate_fields(self)
 #══════════════════════════════════════════════════════════════════════════════
 # _dict
 dict_args = [{}, {1: 1, 2: 2}, {1: {1: 2}}]
 
-@dataclass
-class DictClass(Validated):
+@dataclass(validate = 'middle')
+class DictClass:
     dict1: dict
     dict2: dict[int, int]
     dict3: dict[int, dict[int, int]]
@@ -29,10 +26,9 @@ class DictClass(Validated):
 def test_type_validation_dict_valid():
     DictClass(*dict_args)
 #──────────────────────────────────────────────────────────────────────────────
-@pytest.mark.parametrize("index,value", 
-                         _index_value((1,
-                                       {1: '2'},
-                                       {1: {1: '2'}})))
+@pytest.mark.parametrize("index,value", _index_value((1,
+                                                     {1: '2'},
+                                                     {1: {1: '2'}})))
 def test_type_validation_dict_invalid(index, value):
     _check(DictClass, dict_args, index, value)
 #══════════════════════════════════════════════════════════════════════════════
@@ -40,10 +36,10 @@ def test_type_validation_dict_invalid(index, value):
 
 iterable_args = [[], [1, 2]]
 
-@dataclass
-class IterableClass(Validated):
-    iterable1: typing.Iterable
-    iterable2: typing.Iterable[int]
+@dataclass(validate = 'middle')
+class IterableClass:
+    iterable1: abc.Iterable
+    iterable2: abc.Iterable[int]
 #──────────────────────────────────────────────────────────────────────────────
 def test_type_validation_iterable_valid():
     IterableClass(*iterable_args)
@@ -56,8 +52,8 @@ def test_type_validation_iterable_invalid(index, value):
 
 union_args = [None, {1: 2}]
 
-@dataclass
-class UnionClass(Validated):
+@dataclass(validate = 'middle')
+class UnionClass:
     union1: typing.Union[int, None]
     union2: typing.Union[dict[int, int], int]
 #──────────────────────────────────────────────────────────────────────────────
@@ -72,8 +68,8 @@ def test_type_validation_union_invalid(index, value):
 
 iterate_args = [[], [], {1, 2}]
 
-@dataclass
-class IterateClass(Validated):
+@dataclass(validate = 'middle')
+class IterateClass:
     iterate1: list
     iterate2: list[int]
     iterate3: set[int]
@@ -89,8 +85,8 @@ def test_type_validation_iterate_invalid(index, value):
 
 tuple_args = [tuple(), tuple(), (1,2), (1,2), (1, (1, 2))]
 
-@dataclass
-class TupleClass(Validated):
+@dataclass(validate = 'middle', frozen = True)
+class TupleClass:
     tuple1: tuple
     tuple2: tuple[()]
     tuple3: tuple[int, ...]
@@ -107,3 +103,11 @@ def test_type_validation_tuple_valid():
                                                      (1, (1, '2')))))
 def test_type_validation_tuple_invalid(index, value):
     _check(TupleClass, tuple_args, index, value)
+#══════════════════════════════════════════════════════════════════════════════
+# invalid argument
+def test_dataclass_invalid_keyword():
+
+    with pytest.raises(ValueError):
+        @dataclass(validate = True)
+        class Invalid:
+            ...

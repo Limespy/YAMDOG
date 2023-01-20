@@ -2,10 +2,10 @@
 from dataclasses import *
 _dataclass = dataclass
 del dataclass
-from typing import (Any, Iterable, Optional, GenericAlias, # type: ignore
-                     _UnionGenericAlias) # type: ignore
+import typing as _typing
 
 def _basic(fieldtype, value: str) -> list[str]:
+    # print(f'{fieldtype!r}, {value!r}')
     return ([] if isinstance(value, fieldtype) else 
             [f"{value!r} is not type '{fieldtype.__name__}',"
              f" but '{type(value).__name__}'."])
@@ -52,22 +52,14 @@ def _union(fieldtypes: tuple[type, ...], value: str) -> list[str]:
         errormessages += errormessage
     return errormessages
 #──────────────────────────────────────────────────────────────────────────────
-def _iterable(value) -> list[str]:
-    return ([] if hasattr(value, '__iter__') else 
-            [f"'{type(value).__name__}' object {value!r} is not iterable"])
-#──────────────────────────────────────────────────────────────────────────────
 def _validate(fieldtype, value: str) -> list[str]:
-    if fieldtype == Any:
+    if fieldtype == _typing.Any:
         return []
-    if isinstance(fieldtype, _UnionGenericAlias):
+    if isinstance(fieldtype, _typing._UnionGenericAlias): # type: ignore
         return _union(fieldtype.__args__, value)
-    if fieldtype == Iterable:
-        return _iterable(value)
-    if isinstance(fieldtype, GenericAlias):
+    if isinstance(fieldtype, _typing.GenericAlias): # type: ignore
         return _generic_alias(fieldtype, value)
-    if isinstance(fieldtype, type):
-        return _basic(fieldtype, value)
-    return []
+    return _basic(fieldtype, value)
 #──────────────────────────────────────────────────────────────────────────────
 def _validate_fields(obj, ExceptionType = TypeError) -> None:
     '''Checks types of the attributes of the class
@@ -79,13 +71,8 @@ def _validate_fields(obj, ExceptionType = TypeError) -> None:
     if errormessages:
         raise ExceptionType('\n'.join(errormessages))
 #──────────────────────────────────────────────────────────────────────────────
-def dataclass(cls=None, /, *, validate: Optional[str] = None, **kwargs):
+def dataclass(cls=None, /, *, validate: _typing.Optional[str] = None, **kwargs): # type: ignore
     '''Validate after 'init', 'post_init' or not at all (`None`)
-
-    Parameters
-    ----------
-    validate_after : Optional[str], default None
-        _description_, by 
     '''
 
     if validate is None:
@@ -94,19 +81,23 @@ def dataclass(cls=None, /, *, validate: Optional[str] = None, **kwargs):
         raise ValueError(f'validate was {repr(validate)}')
     # cls is None
     dataclass_wrapper = _dataclass(cls, **kwargs)
+    #─────────────────────────────────────────────────────────────────────────
+    # Creating a new wrapper to wrap the original dataclass wrapper
+    # to wrap init or post_init 
     def decoratorwrap(cls):
         cls = dataclass_wrapper(cls)
-        method_name = ('__post_init__' if validate == 'last'
-                                            and hasattr(cls, '__post_init__')
-                        else '__init__')
+        method_name = ('__post_init__'
+                       if validate == 'last' and hasattr(cls, '__post_init__')
+                       else '__init__')
 
         original_method = getattr(cls, method_name)
-
+        #─────────────────────────────────────────────────────────────────────
         def validation_wrap(self, *args, **kwargs) -> None:
             original_method(self, *args, **kwargs)
             _validate_fields(self)
-
+        #─────────────────────────────────────────────────────────────────────
         setattr(cls, method_name, validation_wrap)
 
         return cls
+    #─────────────────────────────────────────────────────────────────────────
     return decoratorwrap

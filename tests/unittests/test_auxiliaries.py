@@ -15,27 +15,6 @@ def test_string_cleaning():
     assert output == 'test text to check string cleaning.'
 #══════════════════════════════════════════════════════════════════════════════
 # Element
-@pytest.mark.parametrize("index,value", [
-    (i, value) for i, value in enumerate(('s', 1, [], (1,), (1, 1.5), {1: 'a'}, 1, 1.5, 1.5))])
-def test_element_validation(index, value):
-    @dataclass
-    class Cls(md.Element):
-        Int: int
-        Float: float
-        Tuple: tuple
-        Tuple2: tuple[int,int]
-        Tuple3: tuple[int, int]
-        Dict: dict[str, int]
-        Iterable: typing.Iterable
-        Optional: typing.Optional[int]
-        Union: typing.Union[int, str]
-        Any: typing.Any
-        def __str__(self) -> str:
-            return ''
-    args = [1, 1.2, (1, 2), (1,2), (1,2), {'a', 1}, [1], None, 's', 's']
-    args[index] = value
-    with pytest.raises(TypeError):
-        Cls(*args)
 #──────────────────────────────────────────────────────────────────────────────
 def test_element_add():
     element1 = md.Heading(1, 'test')
