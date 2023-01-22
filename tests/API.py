@@ -29,6 +29,10 @@ def typing(shell: bool = False) -> tuple[str, str, int]:
         from mypy import api as mypy
         return mypy.run(args)
 #══════════════════════════════════════════════════════════════════════════════
+def comparison():
+    import compare
+    compare.main()
+#══════════════════════════════════════════════════════════════════════════════
 def performance():
     import yamdog as md
     from yamdog.API import _clean_string

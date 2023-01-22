@@ -8,3 +8,5 @@ if not args or '--unittests' in args:
     API.unittests(verbosity = 2)
 if not args or '--performance' in args:
     API.performance()
+if not args or '--comparison' in args:
+    API.comparison()

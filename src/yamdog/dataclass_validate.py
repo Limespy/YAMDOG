@@ -1,14 +1,14 @@
 
 from dataclasses import *
-_dataclass = dataclass
+_dataclass_std = dataclass
 del dataclass
 import typing as _typing
 
 def _basic(fieldtype, value: str) -> list[str]:
     # print(f'{fieldtype!r}, {value!r}')
     return ([] if isinstance(value, fieldtype) else 
-            [f"{value!r} is not type '{fieldtype.__name__}',"
-             f" but '{type(value).__name__}'."])
+            [f"{value!r} is type '{type(value).__qualname__}',"
+             f" not '{fieldtype.__qualname__}'"])
 #──────────────────────────────────────────────────────────────────────────────
 def _tuple(fieldtypes, values: str) -> list[str]:
     if not fieldtypes and not values:
@@ -69,18 +69,19 @@ def _validate_fields(obj, ExceptionType = TypeError) -> None:
         if messages := _validate(field.type, getattr(obj, name)):
             errormessages.append(f'{name}: {" ".join(messages)}')
     if errormessages:
-        raise ExceptionType('\n'.join(errormessages))
+        errormessages.insert(0, f'{obj.__class__.__qualname__} parameters not matching types')
+        raise ExceptionType('\n    - '.join(errormessages))
 #──────────────────────────────────────────────────────────────────────────────
 def dataclass(cls=None, /, *, validate: _typing.Optional[str] = None, **kwargs): # type: ignore
     '''Validate after 'init', 'post_init' or not at all (`None`)
     '''
 
     if validate is None:
-        return _dataclass(cls, **kwargs)
+        return _dataclass_std(cls, **kwargs)
     if not (validate == 'middle' or validate == 'last'):
-        raise ValueError(f'validate was {repr(validate)}')
+        raise ValueError(f'validate was {repr(validate)}, not "middle", or "last"')
     # cls is None
-    dataclass_wrapper = _dataclass(cls, **kwargs)
+    dataclass_wrapper = _dataclass_std(cls, **kwargs)
     #─────────────────────────────────────────────────────────────────────────
     # Creating a new wrapper to wrap the original dataclass wrapper
     # to wrap init or post_init 

@@ -2,6 +2,7 @@ colorama >= 0.4
 mypy==0.991
 pytest >=7.2.0
 pytest-cov >= 4.0.0
+snakemd
 tomli-w >= 1.0.0
 twine >= 4.0
 wheel >= 0.38

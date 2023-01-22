@@ -6,14 +6,17 @@ Handles"""
 from .dataclass_validate import dataclass as _dataclass_orig
 from .dataclass_validate import field as _field
 
-from collections.abc import Collection, Iterable
+from collections.abc import Collection as _Collection
+from collections.abc import Iterable as _Iterable
 from collections import defaultdict as _defaultdict
 import enum as _enum 
 import itertools as _itertools
 import re as _re
 from string import punctuation as _punctuation 
 import sys
-from typing import Any, Generator, Union
+from typing import Any as _Any
+from typing import Generator as _Generator
+from typing import Union as _Union
 
 # To skip using slots on python 3.9
 if sys.version_info[1] <= 9: # absorbe keyword "slots"
@@ -64,12 +67,12 @@ def _clean_string(text: str):
 def _is_collectable(obj) -> bool:
     return hasattr(obj, '_collect') and isinstance(obj, Element)
 #══════════════════════════════════════════════════════════════════════════════
-def _collect_iter(items: Iterable) -> tuple[dict, dict]:
-    '''Doing ordered set union thing
+def _collect_iter(items: _Iterable) -> tuple[dict, dict]:
+    '''Doing ordered set _Union thing
 
     Parameters
     ----------
-    items : Iterable
+    items : _Iterable
         items to be checked
 
     Returns
@@ -154,7 +157,7 @@ class Text(ContainerElement, InlineElement):
     ValueError
         for invalid style attributes
     '''
-    content: Any
+    content: _Any
     style: set[TextStyle] = _field(default_factory = set)
     level: int = 0 # Normal = 0, subscript = -1, superscipt = 1
     #─────────────────────────────────────────────────────────────────────────
@@ -232,7 +235,7 @@ markers = {UNORDERED: (lambda : _itertools.repeat('- '), 2),
 @_dataclass(slots = True, validate = 'middle') # type: ignore
 class Listing(IterableElement):
     style: ListingStyle
-    content: Iterable
+    content: _Iterable
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         prefixes, prefix_length = markers[self.style]
@@ -251,7 +254,7 @@ class Listing(IterableElement):
 @_dataclass(slots = True, validate = 'middle') # type: ignore
 class Checkbox(ContainerElement):
     checked: bool
-    content: Any
+    content: _Any
     #─────────────────────────────────────────────────────────────────────────
     def __bool__(self) -> bool:
         return self.checked
@@ -265,13 +268,13 @@ class Checkbox(ContainerElement):
     def __add__(self, other):
         raise TypeError(f"unsupported operand type(s) for +: '{type(self).__name__}' and '{type(other).__name__}'")
 #══════════════════════════════════════════════════════════════════════════════
-def make_checklist(items: Iterable[tuple[bool, Any]]):
+def make_checklist(items: _Iterable[tuple[bool, _Any]]):
     return Listing(UNORDERED, (Checkbox(*item) for item in items)) # type: ignore
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(slots = True, validate = 'middle') # type: ignore
 class Heading(ContainerElement):
     level: int
-    content: Any
+    content: _Any
     alt_style: bool = False # Underline instead of #
     in_TOC: bool = True
     #─────────────────────────────────────────────────────────────────────────
@@ -290,14 +293,14 @@ class Heading(ContainerElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(slots = True)
 class Code(InlineElement):
-    content: Any
+    content: _Any
     def __str__(self) -> str:
         return f'`{self.content}`'
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(slots = True)
 class CodeBlock(InlineElement):
-    content: Any
-    language: Any = ''
+    content: _Any
+    language: _Any = ''
     _tics: int = 3
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
@@ -310,16 +313,16 @@ class CodeBlock(InlineElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(slots = True)
 class Address(InlineElement):
-    content: Any
+    content: _Any
     def __str__(self) -> str:
         return f'<{self.content}>'
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(slots = True)
 class Link(InlineElement):
     """Do not change `_index`"""
-    content: Any
-    target: Any
-    title: Any = None
+    content: _Any
+    target: _Any
+    title: _Any = None
     _index: int = 0
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
@@ -335,9 +338,9 @@ class Link(InlineElement):
 #══════════════════════════════════════════════════════════════════════════════
 # Table
 def _pad(items: list[str],
-         widths: Iterable[int],
-         alignments: Iterable[Alignment]
-         ) -> Generator[str, None, None]:
+         widths: _Iterable[int],
+         alignments: _Iterable[Alignment]
+         ) -> _Generator[str, None, None]:
     for alignment, item, width in zip(alignments, items, widths):
         if alignment == LEFT:
             yield f'{item}{(width - len(item)) * " "}'
@@ -349,13 +352,13 @@ def _pad(items: list[str],
         else:
             raise ValueError(f'alignment {alignment} not recognised')
 #══════════════════════════════════════════════════════════════════════════════
-def _str_row_sparse(row: Iterable[str]):
+def _str_row_sparse(row: _Iterable[str]):
     return '| ' + ' | '.join(row) + ' |'
 @_dataclass(slots = True, validate = 'middle') # type: ignore
 class Table(IterableElement):
-    header: Iterable
-    content: list[Collection] = _field(default_factory = list)
-    alignment: list[Alignment] = _field(default_factory = list)
+    header: _Iterable
+    content: list[_Collection] = _field(default_factory = list)
+    alignment: _Collection[Alignment] = _field(default_factory = list)
     compact: bool = False
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
@@ -365,11 +368,11 @@ class Table(IterableElement):
                 old |= new
         return output
     #─────────────────────────────────────────────────────────────────────────
-    def append(self, row: Collection) -> None:
+    def append(self, row: _Collection) -> None:
         if hasattr(row, '__iter__'):
             self.content.append(row)
         else:
-            raise TypeError(f"'{type(row)}' is not iterable")
+            raise TypeError(f"'{type(row)}' is not _Iterable")
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         header = [str(item) for item in self.header]
@@ -380,7 +383,7 @@ class Table(IterableElement):
             if len(row) > max_rowlen:
                 max_rowlen = len(row)
         header += ['']*(max_rowlen - len(header))
-        alignment = self.alignment + [LEFT] * (max_rowlen - len(self.alignment))
+        alignment = list(self.alignment) + [LEFT] * (max_rowlen - len(self.alignment))
         alignment_row: list[str] = []
         if self.compact:
             output = ['|'.join(header)]
@@ -425,7 +428,7 @@ class Table(IterableElement):
 @_dataclass(slots = True)
 class Footnote(InlineElement):
     """Do not change `_index`"""
-    content: Any
+    content: _Any
     _index: int = 0 # TODO something with `_field` to prevent assignment at init
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
@@ -439,7 +442,7 @@ class Footnote(InlineElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(slots = True, validate = 'middle') # type: ignore
 class Math(InlineElement):
-    text: Any
+    text: _Any
     flavour: Flavour = GITHUB
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
@@ -451,7 +454,7 @@ class Math(InlineElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(slots = True, validate = 'middle') # type: ignore
 class MathBlock(Element):
-    text: Any
+    text: _Any
     flavour: Flavour = GITHUB
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
@@ -463,7 +466,7 @@ class MathBlock(Element):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(slots = True)
 class QuoteBlock(ContainerElement):
-    content: Any
+    content: _Any
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return '> ' + str(self.content).replace('\n', '\n> ')
@@ -475,8 +478,8 @@ class HRule(Element):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(slots = True)
 class Image(Element):
-    path: Any
-    alt_text: Any = ''
+    path: _Any
+    alt_text: _Any = ''
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f'![{self.alt_text}]({self.path})'
@@ -484,7 +487,7 @@ class Image(Element):
 @_dataclass(slots = True)
 class Emoji(InlineElement):
     """https://www.webfx.com/tools/emoji-cheat-sheet/"""
-    code: Any
+    code: _Any
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f':{self.code}:'
@@ -497,7 +500,7 @@ class TOC(Element):
     def __str__(self) -> str:
         return self._text
 #══════════════════════════════════════════════════════════════════════════════
-def _preprocess_document(content: Iterable
+def _preprocess_document(content: _Iterable
                 ) -> tuple[list,
                            dict[int, list],
                            int,
@@ -598,8 +601,8 @@ def _process_TOC(TOCs, headings, top_level) -> None:
 @_dataclass(slots = True, validate = 'middle') # type: ignore
 class Document(IterableElement):
     content: list = _field(default_factory = list)
-    header_language_and_text: Union[tuple[()],
-                                    tuple[Any, Any]] = _field(
+    header_language_and_text: _Union[tuple[()],
+                                    tuple[_Any, _Any]] = _field(
                                         default_factory = tuple) # type: ignore
     #─────────────────────────────────────────────────────────────────────────
     def __add__(self, item):
