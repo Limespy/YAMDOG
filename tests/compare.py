@@ -1,5 +1,6 @@
 from time import perf_counter
 from typing import Any
+
 docname = 'Comparison'
 
 heading1 = 'Comparing YANDOG and SnakeMD'
@@ -43,7 +44,8 @@ def build_snakemd_doc():
     doc.add_paragraph(paragraph1)
     doc.add_unordered_list(list1)
     doc.add_element(md.MDList([md.InlineText(*link1),
-                               md.InlineText(*link2)], ordered = True))
+                               md.InlineText(*link2)],
+                              ordered = True))
     doc.add_table(table1_header, table1_body)
     doc.add_table(table1_header, table1_body, (md.Table.Align.LEFT,
                                                md.Table.Align.CENTER,
@@ -53,7 +55,7 @@ def build_snakemd_doc():
 
 def massive_table_yamdog():
     import yamdog as md
-    
+
 
 
 def timed(function, *args) -> tuple[Any, float]:

@@ -6,12 +6,10 @@ import typing
 
 #══════════════════════════════════════════════════════════════════════════════
 # clean_string
-def test_string_cleaning():
-    output = md._clean_string('''
-            test text
+def test_string_sanitisation():
+    output = md._sanitise_str('''test text
             to check\tstring 
-            cleaning.
-            ''')
+            cleaning.''')
     assert output == 'test text to check string cleaning.'
 #══════════════════════════════════════════════════════════════════════════════
 # Element

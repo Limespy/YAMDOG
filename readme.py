@@ -3,85 +3,6 @@ import yamdog as md
 import pathlib
 import re
 
-
-def main():
-    name = 'YAMDOG'
-    pypiname = 'yamdog'
-
-    source = pathlib.Path(__file__).read_text('utf8')
-    
-    # Setup for the badges
-    shields_url = 'https://img.shields.io/'
-
-    pypi_project_url = f'https://pypi.org/project/{pypiname}'
-    pypi_badge_info = (('v', 'PyPI Package latest release'),
-                       ('wheel', 'PyPI Wheel'),
-                       ('pyversions', 'Supported versions'),
-                       ('implementation', 'Supported implementations'))
-    pypi_badges = [md.Link(md.Image(f'{shields_url}pypi/{code}/{pypiname}.svg',
-                                    desc), pypi_project_url, '')
-                   for code, desc in pypi_badge_info]
-
-    # Starting the document
-    metasection = md.Document([
-        md.Heading(1, f'Overview of {name}', in_TOC = False),
-        md.Paragraph(pypi_badges, '\n'),
-        'Yet Another Markdown Only Generator',
-        md.Heading(2, f'What is {name}?', in_TOC = False),
-        f'''{name} is toolkit for creating Markdown text using Python.
-        Markdown is a light and relatively simple markup language.''',
-        md.TOC()
-        ]
-    )
-
-    quick_start_guide = md.Document([
-        md.Heading(1, 'Quick start guide'),
-        "Here's how you can start automatically generating Markdown documents",
-        md.Heading(2, 'The first steps'),
-        '',
-        md.Heading(3, 'Install'),
-        f'''Install {name} with pip.
-        {name} uses only Python standard library so it has no additional dependencies.''',
-        md.CodeBlock(f'pip install {pypiname}'),
-        md.Heading(2, 'Using the package'),
-        f'There are two main things to building a Markdown document using {name}',
-        md.Listing(md.ORDERED, ['Making elements',
-                               'Combining elements into a document']),
-        md.Paragraph(['You can call ',
-            md.Code('str'),
-            ' on the element directly to get the markdown source']),
-        md.CodeBlock('markdown_source = str(element)', 'python'),
-        '''but most of the time you will compose the elements together into an
-        document''',
-        md.CodeBlock('markdown_source = str(document)', 'python')
-        ])
-
-    # EXAMPLES
-
-    quick_start_guide += make_examples(source)
-
-
-    doc = metasection + quick_start_guide
-    basic_syntax_link = md.Link('basic syntax',
-                                'https://www.markdownguide.org/basic-syntax/',
-                                '')
-    ext_syntax_link = md.Link('extended syntax',
-                              'https://www.markdownguide.org/basic-syntax/',
-                              '')
-    doc += md.HRule()
-    doc += md.Heading(1, 'Annexes')
-    doc += md.Heading(2, 'Annex 1: README Python source')
-    doc += '''And here the full source code that wrote this README.
-            This can serve as a more advanced example of what this is
-            capable of.'''
-    doc += md.Link('The python file can also be found here', 'https://github.com/Limespy/YAMDOG/blob/main/readme.py')
-    doc += md.CodeBlock(source, 'python')
-
-    (pathlib.Path(__file__).parent / 'README.md').write_text(str(doc), 'utf8')
-
-def make_changelog():
-    
-
 def make_examples(source: str) -> md.Document:
     '''Examples are collected via source code introspection'''
     # First getting the example code blocks
@@ -183,8 +104,11 @@ def make_examples(source: str) -> md.Document:
     doc += get_example('listing', listing)
 
     #%% checklist
+    checklist = md.make_checklist([(False, 'unchecked box'),
+                                   (True, 'checked box'),
+                                   (True, 'done')])
 
-
+    doc += get_example('checklist', checklist)
     #%% link
     link = md.Link('Link to Markdown Guide', 'https://www.markdownguide.org')
 
@@ -251,6 +175,116 @@ def make_examples(source: str) -> md.Document:
     doc += md.Text('Rendered result', {md.ITALIC})
     doc += document
 
+    return doc
+
+def make_quick_start_guide(name, pypiname, source):
+    doc = md.Document([
+        md.Heading(1, 'Quick start guide'),
+        "Here's how you can start automatically generating Markdown documents",
+        md.Heading(2, 'The first steps'),
+        '',
+        md.Heading(3, 'Install'),
+        f'''Install {name} with pip.
+        {name} uses only Python standard library so it has no additional dependencies.''',
+        md.CodeBlock(f'pip install {pypiname}'),
+        md.Heading(3, 'import'),
+        f'''Import name is the same as install name, {pypiname}.''',
+        md.CodeBlock(f'import {pypiname}', 'python'),
+        md.Paragraph(['Since the package is accessed often, I use abbreviation',
+        md.Code('md'), ' for MarkDown. The abbreviation is used throughout this document.']),
+        md.CodeBlock(f'import {pypiname} as md', 'python'),
+        md.Heading(2, 'Using the package'),
+        f'There are two main things to building a Markdown document using {name}',
+        md.Listing(md.ORDERED, ['Making elements',
+                               'Combining elements into a document']),
+        md.Paragraph(['You can call ',
+            md.Code('str'),
+            ' on the element directly to get the markdown source']),
+        md.CodeBlock('markdown_source = str(element)', 'python'),
+        '''but most of the time you will compose the elements together into an
+        document''',
+        md.CodeBlock('markdown_source = str(document)', 'python')
+        ])
+    doc += make_examples(source)
+    return doc
+
+
+def make_changelog():
+    doc = md.Document([md.Heading(1, 'Changelog')])
+
+    changelog = (('0.4.0', '2023-01-23', ['Much better type validation',
+                                          'Some comparisons']),
+                 ('0.3.1', '2023-01-23', ['Preliminary type validation',
+                                          'Full test coverage'])
+                 )
+
+    for version, date, changes in changelog:
+        doc += md.Heading(2, f'{version} {date}', in_TOC = False)
+        doc += md.Listing(md.UNORDERED, changes)
+
+    return doc
+
+def make_further_reading():
+    basic_syntax_link = md.Link('basic syntax',
+                                'https://www.markdownguide.org/basic-syntax/',
+                                '')
+    extended_syntax_link = md.Link('extended syntax',
+                                  'https://www.markdownguide.org/basic-syntax/',
+                                   '')
+
+    doc = md.Document([md.Heading(1, 'Further reading')])
+    doc += md.Listing(md.UNORDERED, [basic_syntax_link, extended_syntax_link])
+    return doc
+
+def make_annexes(source):
+    doc = md.Document([md.Heading(1, 'Annexes')])
+    doc += md.Heading(2, 'Annex 1: README Python source')
+    doc += '''And here the full source code that wrote this README.
+            This can serve as a more advanced example of what this is
+            capable of.'''
+    doc += md.Link('The python file can also be found here', 'https://github.com/Limespy/YAMDOG/blob/main/readme.py')
+    doc += md.CodeBlock(source, 'python')
+    return doc
+
+def make_readme(name, pypiname, source):
+    # Setup for the badges
+    shields_url = 'https://img.shields.io/'
+
+    pypi_project_url = f'https://pypi.org/project/{pypiname}'
+    pypi_badge_info = (('v', 'PyPI Package latest release'),
+                       ('wheel', 'PyPI Wheel'),
+                       ('pyversions', 'Supported versions'),
+                       ('implementation', 'Supported implementations'))
+    pypi_badges = [md.Link(md.Image(f'{shields_url}pypi/{code}/{pypiname}.svg',
+                                    desc), pypi_project_url, '')
+                   for code, desc in pypi_badge_info]
+
+    # Starting the document
+    doc = md.Document([
+        md.Heading(1, f'Overview of {name}', in_TOC = False),
+        md.Paragraph(pypi_badges, '\n'),
+        'Yet Another Markdown Only Generator',
+        md.Heading(2, f'What is {name}?', in_TOC = False),
+        f'''{name} is toolkit for creating Markdown text using Python.
+        Markdown is a light and relatively simple markup language.''',
+        md.TOC()
+        ])
+    doc += make_quick_start_guide(name, pypiname, source)
+    doc += make_further_reading()
+    doc += make_changelog()
+    doc += md.HRule()
+    doc += make_annexes(source)
+    return doc
+
+def main():
+    name = 'YAMDOG'
+    pypiname = 'yamdog'
+
+    source = pathlib.Path(__file__).read_text('utf8')
+
+    doc = make_readme(name, pypiname, source)
+
+    (pathlib.Path(__file__).parent / 'README.md').write_text(str(doc), 'utf8')
     return doc
 
 if __name__ == '__main__':

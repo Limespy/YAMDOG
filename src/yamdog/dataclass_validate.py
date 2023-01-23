@@ -5,7 +5,6 @@ del dataclass
 import typing as _typing
 
 def _basic(fieldtype, value: str) -> list[str]:
-    # print(f'{fieldtype!r}, {value!r}')
     return ([] if isinstance(value, fieldtype) else 
             [f"{value!r} is type '{type(value).__qualname__}',"
              f" not '{fieldtype.__qualname__}'"])

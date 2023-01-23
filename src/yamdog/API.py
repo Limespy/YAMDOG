@@ -61,8 +61,8 @@ BASIC, EXTENDED, GITHUB, GITLAB, PYPI = Flavour # type: ignore
 
 _re_whitespaces = _re.compile(r'\s\s*') # r to fix deprecation warning 
 # https://stackoverflow.com/questions/60859794/how-to-fix-string-deprecationwarning-invalid-escape-sequence-in-python
-def _clean_string(text: str):
-    return _re_whitespaces.sub(' ', text).strip()
+def _sanitise_str(text: str):
+    return _re_whitespaces.sub(' ', text)
 #══════════════════════════════════════════════════════════════════════════════
 def _is_collectable(obj) -> bool:
     return hasattr(obj, '_collect') and isinstance(obj, Element)
@@ -124,7 +124,7 @@ class Paragraph(IterableElement):
     separator: str = ''
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        return self.separator.join(_clean_string(item) if isinstance(item, str)
+        return self.separator.join(_sanitise_str(item) if isinstance(item, str)
                                    else str(item) for item in self.content)
     #─────────────────────────────────────────────────────────────────────────
     def __iadd__(self, other):
@@ -260,7 +260,7 @@ class Checkbox(ContainerElement):
         return self.checked
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        content = (_clean_string(self.content)
+        content = (_sanitise_str(self.content)
                   if isinstance(self.content, str)
                   else self.content)
         return (f'[{"x" if self else " "}] {content}')
@@ -305,7 +305,7 @@ class CodeBlock(InlineElement):
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         text = str(self.content)
-        language = _clean_string(str(self.language))
+        language = _sanitise_str(str(self.language))
         self._tics = (self.content._tics + 1
                       if isinstance(self.content, CodeBlock)
                       else self._tics)
@@ -521,7 +521,7 @@ def _preprocess_document(content: _Iterable
     top_level = 999
     for item in content:
         if isinstance(item, str):
-            new_content.append(_clean_string(item))
+            new_content.append(_sanitise_str(item).strip())
         else:
             new_content.append(item)
             if isinstance(item, TOC):
