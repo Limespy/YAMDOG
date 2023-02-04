@@ -16,7 +16,7 @@ YAMDOG is toolkit for creating Markdown text using Python. Markdown is a light a
 - [Quick start guide](#quick-start-guide)
     - [The first steps](#the-first-steps)
         - [Install](#install)
-        - [import](#import)
+        - [Import](#import)
     - [Using the package](#using-the-package)
         - [Making elements](#making-elements)
             - [Heading](#heading)
@@ -54,7 +54,7 @@ Install YAMDOG with pip. YAMDOG uses only Python standard library so it has no a
 pip install yamdog
 ```
 
-### import
+### Import
 
 Import name is the same as install name, yamdog.
 
@@ -123,7 +123,7 @@ heading = md.Heading(4, 'Example heading')
 
 ==highlighted text==
 
-***==~~All styles combined~~==***
+***~~==All styles combined==~~***
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})
@@ -680,11 +680,12 @@ def make_quick_start_guide(name, pypiname, source):
         f'''Install {name} with pip.
         {name} uses only Python standard library so it has no additional dependencies.''',
         md.CodeBlock(f'pip install {pypiname}'),
-        md.Heading(3, 'import'),
+        md.Heading(3, 'Import'),
         f'''Import name is the same as install name, {pypiname}.''',
         md.CodeBlock(f'import {pypiname}', 'python'),
         md.Paragraph(['Since the package is accessed often, I use abbreviation',
-        md.Code('md'), ' for MarkDown. The abbreviation is used throughout this document.']),
+                      md.Code('md'), 
+                      ' for MarkDown. The abbreviation is used throughout this document.']),
         md.CodeBlock(f'import {pypiname} as md', 'python'),
         md.Heading(2, 'Using the package'),
         f'There are two main things to building a Markdown document using {name}',

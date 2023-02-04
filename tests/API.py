@@ -35,7 +35,7 @@ def comparison():
 #══════════════════════════════════════════════════════════════════════════════
 def performance():
     import yamdog as md
-    from yamdog.API import _clean_string
+    from yamdog.API import _sanitise_str
 
     from pydantic import BaseModel
     from pympler.asizeof import asizeof
