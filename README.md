@@ -123,7 +123,7 @@ heading = md.Heading(4, 'Example heading')
 
 ==highlighted text==
 
-***~~==All styles combined==~~***
+==*~~**All styles combined**~~*==
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})

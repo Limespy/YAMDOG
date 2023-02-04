@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yamdog"
-version = "0.4.0.13"
+version = "0.4.0.14"
 description = "Yet Another Markdown Only Generator"
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -41,6 +41,7 @@ dev = [
     "mypy==0.991",
     "pytest >=7.2.0",
     "pytest-cov >= 4.0.0",
+    "snakemd",
     "tomli-w >= 1.0.0",
     "twine >= 4.0",
     "wheel >= 0.38",
