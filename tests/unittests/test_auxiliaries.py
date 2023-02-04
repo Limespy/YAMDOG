@@ -6,11 +6,15 @@ import typing
 
 #══════════════════════════════════════════════════════════════════════════════
 # clean_string
-def test_string_sanitisation():
-    output = md._sanitise_str('''test text
-            to check\tstring 
-            cleaning.''')
-    assert output == 'test text to check string cleaning.'
+@pytest.mark.parametrize("string, expected", [
+    ('test', 'test'),
+    (' test', ' test'),
+    ('test ', 'test '),
+    ('test\t', 'test\t'),
+    ('''test
+        text''',  'test text')])
+def test_string_sanitisation(string, expected):
+    assert md._sanitise_str(string) == expected
 #══════════════════════════════════════════════════════════════════════════════
 # Element
 #──────────────────────────────────────────────────────────────────────────────

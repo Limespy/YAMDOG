@@ -50,7 +50,6 @@ def build_snakemd_doc():
     doc.add_table(table1_header, table1_body, (md.Table.Align.LEFT,
                                                md.Table.Align.CENTER,
                                                md.Table.Align.RIGHT))
-
     return doc
 
 def massive_table_yamdog():

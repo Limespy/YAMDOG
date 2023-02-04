@@ -53,7 +53,11 @@ def test_text_style_edit():
     ((['test'],),            'test'),
     ((['test', 'item'],),    'testitem'),
     ((['test'],' '),         'test'),
-    ((['test', 'item'],' '), 'test item')
+    ((['test', 'item'],' '), 'test item'),
+    (([' test'],), ' test'),
+    ((['''
+          test
+       '''],), 'test')
 ])
 def test_paragraph_str(args, expected):
     assert str(md.Paragraph(*args)) == expected
@@ -121,8 +125,7 @@ def test_listing_str(args, expected):
 # Checkbox
 @pytest.mark.parametrize("args,expected", [
     ((True, 'test'), '[x] test'),
-    ((False, 'test'), '[ ] test'),
-    ((False, 'test\n'), '[ ] test'),
+    ((False, 'test'), '[ ] test')
 ])
 def test_checkbox_str(args, expected):
     assert str(md.Checkbox(*args)) == expected
@@ -256,7 +259,8 @@ def test_document_str_simple(args):
     if len(args) == 0:
         expected = []
     elif len(args) >= 1:
-        expected = [md._clean_string(item) if isinstance(item, str) else str(item)
+        expected = [md._sanitise_str(item).strip()
+                    if isinstance(item, str) else str(item)
                     for item in args[0]]
     if len(args) == 2:
         expected.insert(0, md._process_header(*args[1]))
@@ -270,7 +274,7 @@ def test_document_str_simple(args):
 def test_document_str_header(args):
 
     expected = [md._process_header(*args[1])]
-    expected += [md._clean_string(item) if isinstance(item, str) else str(item)
+    expected += [md._sanitise_str(item) if isinstance(item, str) else str(item)
                     for item in args[0]]
 
     assert str(md.Document(*args)) == '\n\n'.join(expected)

@@ -187,11 +187,12 @@ def make_quick_start_guide(name, pypiname, source):
         f'''Install {name} with pip.
         {name} uses only Python standard library so it has no additional dependencies.''',
         md.CodeBlock(f'pip install {pypiname}'),
-        md.Heading(3, 'import'),
+        md.Heading(3, 'Import'),
         f'''Import name is the same as install name, {pypiname}.''',
         md.CodeBlock(f'import {pypiname}', 'python'),
         md.Paragraph(['Since the package is accessed often, I use abbreviation',
-        md.Code('md'), ' for MarkDown. The abbreviation is used throughout this document.']),
+                      md.Code('md'), 
+                      ' for MarkDown. The abbreviation is used throughout this document.']),
         md.CodeBlock(f'import {pypiname} as md', 'python'),
         md.Heading(2, 'Using the package'),
         f'There are two main things to building a Markdown document using {name}',
@@ -242,7 +243,8 @@ def make_annexes(source):
     doc += '''And here the full source code that wrote this README.
             This can serve as a more advanced example of what this is
             capable of.'''
-    doc += md.Link('The python file can also be found here', 'https://github.com/Limespy/YAMDOG/blob/main/readme.py')
+    doc += md.Link('The python file can also be found here',
+                   'https://github.com/Limespy/YAMDOG/blob/main/readme.py')
     doc += md.CodeBlock(source, 'python')
     return doc
 
@@ -267,11 +269,12 @@ def make_readme(name, pypiname, source):
         md.Heading(2, f'What is {name}?', in_TOC = False),
         f'''{name} is toolkit for creating Markdown text using Python.
         Markdown is a light and relatively simple markup language.''',
+        md.Heading(3, 'Table of Content', in_TOC = False),
         md.TOC()
         ])
     doc += make_quick_start_guide(name, pypiname, source)
-    doc += make_further_reading()
     doc += make_changelog()
+    doc += make_further_reading()
     doc += md.HRule()
     doc += make_annexes(source)
     return doc

@@ -60,7 +60,7 @@ def performance():
         separator: str = ''
         #─────────────────────────────────────────────────────────────────────────
         def __str__(self) -> str:
-            return self.separator.join(_clean_string(item) if isinstance(item, str)
+            return self.separator.join(_sanitise_str(item) if isinstance(item, str)
                                     else str(item) for item in self.content)
         #─────────────────────────────────────────────────────────────────────────
         def __iadd__(self, other):

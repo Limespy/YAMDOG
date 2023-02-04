@@ -59,10 +59,13 @@ class Flavour(_enum.Enum):
 
 BASIC, EXTENDED, GITHUB, GITLAB, PYPI = Flavour # type: ignore
 
-_re_whitespaces = _re.compile(r'\s\s*') # r to fix deprecation warning 
-# https://stackoverflow.com/questions/60859794/how-to-fix-string-deprecationwarning-invalid-escape-sequence-in-python
+_re_begin = _re.compile(r'^\s*\n\s*')
+_re_middle = _re.compile(r'\s*\n\s*')
+_re_end = _re.compile(r'\s*\n\s*$')
 def _sanitise_str(text: str):
-    return _re_whitespaces.sub(' ', text)
+    text = _re_begin.sub('', text)
+    text = _re_end.sub('', text)
+    return _re_middle.sub(' ', text)
 #══════════════════════════════════════════════════════════════════════════════
 def _is_collectable(obj) -> bool:
     return hasattr(obj, '_collect') and isinstance(obj, Element)

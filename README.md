@@ -11,6 +11,8 @@ Yet Another Markdown Only Generator
 
 YAMDOG is toolkit for creating Markdown text using Python. Markdown is a light and relatively simple markup language.
 
+### Table of Content <!-- omit in toc -->
+
 - [Quick start guide](#quick-start-guide)
     - [The first steps](#the-first-steps)
         - [Install](#install)
@@ -31,8 +33,8 @@ YAMDOG is toolkit for creating Markdown text using Python. Markdown is a light a
             - [Quote block](#quote-block)
         - [Combining elements into a document](#combining-elements-into-a-document)
             - [Example heading](#example-heading1)
-- [Further reading](#further-reading)
 - [Changelog](#changelog)
+- [Further reading](#further-reading)
 - [Annexes](#annexes)
     - [Annex 1: README Python source](#annex-1-readme-python-source)
 
@@ -121,7 +123,7 @@ heading = md.Heading(4, 'Example heading')
 
 ==highlighted text==
 
-*~~**==All styles combined==**~~*
+***==~~All styles combined~~==***
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})
@@ -461,11 +463,6 @@ Example paragraph containing **bolded text**
     1. first
     2. second
 
-# Further reading
-
-- [basic syntax][2]
-- [extended syntax][2]
-
 # Changelog
 
 ## 0.4.0 2023-01-23 <!-- omit in toc -->
@@ -477,6 +474,11 @@ Example paragraph containing **bolded text**
 
 - Preliminary type validation
 - Full test coverage
+
+# Further reading
+
+- [basic syntax][2]
+- [extended syntax][2]
 
 ---
 
@@ -733,7 +735,8 @@ def make_annexes(source):
     doc += '''And here the full source code that wrote this README.
             This can serve as a more advanced example of what this is
             capable of.'''
-    doc += md.Link('The python file can also be found here', 'https://github.com/Limespy/YAMDOG/blob/main/readme.py')
+    doc += md.Link('The python file can also be found here',
+                   'https://github.com/Limespy/YAMDOG/blob/main/readme.py')
     doc += md.CodeBlock(source, 'python')
     return doc
 
@@ -758,11 +761,12 @@ def make_readme(name, pypiname, source):
         md.Heading(2, f'What is {name}?', in_TOC = False),
         f'''{name} is toolkit for creating Markdown text using Python.
         Markdown is a light and relatively simple markup language.''',
+        md.Heading(3, 'Table of Content', in_TOC = False),
         md.TOC()
         ])
     doc += make_quick_start_guide(name, pypiname, source)
-    doc += make_further_reading()
     doc += make_changelog()
+    doc += make_further_reading()
     doc += md.HRule()
     doc += make_annexes(source)
     return doc
