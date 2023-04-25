@@ -1,5 +1,6 @@
-import yamdog.API as md
 import pytest
+import yamdog as md
+from yamdog import _API
 #══════════════════════════════════════════════════════════════════════════════
 # Text
 @pytest.mark.parametrize("args,expected", [
@@ -17,11 +18,11 @@ def test_text_str(args, expected):
 #──────────────────────────────────────────────────────────────────────────────
 def test_text_invalid_style():
     with pytest.raises(TypeError):
-        md.Text('test', {'test'})
+        md.Text('test', {'test'}) # type: ignore
 #──────────────────────────────────────────────────────────────────────────────
 def test_text_superscrip_subscipt():
     with pytest.raises(ValueError):
-        md.Text('test', set(), -3)
+        md.Text('test', set(), -3) # type: ignore
 #──────────────────────────────────────────────────────────────────────────────
 def test_text_style_edit():
     text = md.Text('test')
@@ -66,7 +67,7 @@ def test_paragraph_iadd_inline():
     paragraph = md.Paragraph()
     text = md.Text('test', {md.BOLD})
     paragraph += text
-    assert paragraph.content[0] == text 
+    assert paragraph.content[0] == text
 #──────────────────────────────────────────────────────────────────────────────
 def test_paragraph_iadd_paragraph():
     paragraph1 = md.Paragraph(['test'])
@@ -136,12 +137,12 @@ def test_checkbox_add_raises_type_error():
 #══════════════════════════════════════════════════════════════════════════════
 # make_checklist
 def test_make_cheklist_return_listing():
-    assert isinstance(md.make_checklist([True, 'test']), md.Listing)
+    assert isinstance(md.make_checklist([(True, 'test')]), md.Listing)
 #──────────────────────────────────────────────────────────────────────────────
-def test_make_cheklist_return_correct_listing_style():
-    assert md.make_checklist([True, 'test']).style == md.UNORDERED
+def test_make_checklist_return_correct_listing_style():
+    assert md.make_checklist([(True, 'test')]).style == md.UNORDERED
 #──────────────────────────────────────────────────────────────────────────────
-def test_make_cheklist_return_correct_listing_style():
+def test_make_checklist_return_correct_listing_style_with_multiple():
     data = [(True, 'test'), (False, 'test')]
     assert list(md.make_checklist(data)) == [md.Checkbox(*args) for args in data]
 #══════════════════════════════════════════════════════════════════════════════
@@ -161,7 +162,7 @@ a|b|c|
 ])
 def test_table_str(args, expected_pretty, expected_compact):
     assert str(md.Table(*args)) == expected_pretty.strip()
-    assert str(md.Table(*args, True)) == expected_compact.strip()
+    assert str(md.Table(*args, compact = True)) == expected_compact.strip() # type: ignore
 #──────────────────────────────────────────────────────────────────────────────
 def test_table_alignment_fill():
     assert str(md.Table(['a', 'b'], [[1, 2]])) == '| a   | b   |\n| :-- | :-- |\n| 1   | 2   |'
@@ -171,7 +172,7 @@ def test_table_append():
     table.append([3, 4])
     assert table.content == [[1,2], [3,4]]
     with pytest.raises(TypeError):
-        table.append(1)
+        table.append(1) # type: ignore
 #══════════════════════════════════════════════════════════════════════════════
 # Address
 def test_address_str():
@@ -259,11 +260,11 @@ def test_document_str_simple(args):
     if len(args) == 0:
         expected = []
     elif len(args) >= 1:
-        expected = [md._sanitise_str(item).strip()
+        expected = [_API._sanitise_str(item).strip()
                     if isinstance(item, str) else str(item)
                     for item in args[0]]
     if len(args) == 2:
-        expected.insert(0, md._process_header(*args[1]))
+        expected.insert(0, _API._process_header(*args[1]))
 
     assert str(md.Document(*args)) == '\n\n'.join(expected)
 #──────────────────────────────────────────────────────────────────────────────
@@ -273,8 +274,8 @@ def test_document_str_simple(args):
                                   (['test'], ('php', 'test'))])
 def test_document_str_header(args):
 
-    expected = [md._process_header(*args[1])]
-    expected += [md._sanitise_str(item) if isinstance(item, str) else str(item)
+    expected = [_API._process_header(*args[1])]
+    expected += [_API._sanitise_str(item) if isinstance(item, str) else str(item)
                     for item in args[0]]
 
     assert str(md.Document(*args)) == '\n\n'.join(expected)
@@ -299,7 +300,7 @@ def test_document_str_references():
     link2 = md.Link('simple', 'url2', 'title2')
     link3 = md.Link('different text', 'url1', 'title1')
     doc = md.Document([link0, link1, link2, link3])
-    expected = [str(link0), 
+    expected = [str(link0),
                 f'[{link1.content}][1]',
                 f'[{link2.content}][2]',
                 f'[{link3.content}][1]']
@@ -310,15 +311,15 @@ def test_document_str_references():
 def test_document_toc():
     headings = [md.Heading(i, f'h{i}') for i in range(1,6,1)]
     # creating example
-    reftext, ref = md._heading_ref_texts(headings[3].content) # level up to 4
+    reftext, ref = _API._heading_ref_texts(headings[3].content) # level up to 4
 
     listing = md.Listing(md.UNORDERED, [md.Link(reftext, ref)])
     for heading in reversed(headings[:3]):
-        reftext, ref = md._heading_ref_texts(heading.content)
+        reftext, ref = _API._heading_ref_texts(heading.content)
         listing = md.Listing(md.UNORDERED, [(md.Link(reftext, ref), listing)])
     # Testing duplicate headers
-    reftext, ref = md._heading_ref_texts(headings[0].content)
-    listing.content.append(md.Link(reftext, ref + '1'))
+    reftext, ref = _API._heading_ref_texts(headings[0].content)
+    listing.append(md.Link(reftext, ref + '1')) # type: ignore
     headings.append(headings[0])
     assert str(md.Document([md.TOC()] + headings)).startswith(str(listing))
 #──────────────────────────────────────────────────────────────────────────────

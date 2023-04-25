@@ -1,15 +1,15 @@
 #!/usr/bin/env python
-# -*- encoding: utf-8 -*-
+# type: ignore
 #%%═════════════════════════════════════════════════════════════════════
 # IMPORT
-import readme
-
-import tomli_w
 import pathlib
-from build import __main__ as build
+import sys
 import tomllib
 
-import sys
+import tomli_w
+
+import readme
+from build import __main__ as build
 
 if '--print' in sys.argv:
     import pprint
@@ -52,7 +52,7 @@ if not '--notests' in sys.argv:
         print(typing_test_result[1])
 
     print('Running unit tests')
-    unit_test_result = tests.unittests(verbosity = 1)
+    tests.unittests()
     # failed |= bool(unit_test_result.errors)
     # failed |= bool(unit_test_result.failures)
     if failed:
@@ -136,23 +136,6 @@ build_info['urls'] = {
     'Homepage': URL,
     'Changelog': f'{GITHUB_MAIN_URL}{PATH_README.name}#Changelog',
     'Issue Tracker': f'{URL}/issues'}
-#───────────────────────────────────────────────────────────────────────
-# Keywords
-# build_info['keywords'] = ['markdown']
-#───────────────────────────────────────────────────────────────────────
-# Python requires
-build_info['requires-python']  = PYTHON_VERSION
-#───────────────────────────────────────────────────────────────────────
-# Install requires
-with open(BASE_DIR / 'dependencies.txt', encoding = 'utf8') as f:
-    build_info['dependencies'] = [line.rstrip() for line in f.readlines()]
-#───────────────────────────────────────────────────────────────────────
-# Extras require
-with open(BASE_DIR / 'dependencies_dev.txt', encoding = 'utf8') as f:
-    build_info['optional-dependencies'] = {'dev':
-                                    [line.rstrip() for line in f.readlines()]}
-# ───────────────────────────────────────────────────────────────────────
-# Entry points
 #%%═════════════════════════════════════════════════════════════════════
 # PRINTING SETUP INFO
 

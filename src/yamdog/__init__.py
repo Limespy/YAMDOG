@@ -1,2 +1,3 @@
+'''Markdown generation tool'''
 __version__ = '0.4.0'
-from .API import *
+from ._API import *

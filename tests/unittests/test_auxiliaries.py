@@ -1,8 +1,5 @@
-import yamdog.API as md
-
-from dataclasses import dataclass
 import pytest
-import typing
+import yamdog._API as md
 
 #══════════════════════════════════════════════════════════════════════════════
 # clean_string
@@ -43,7 +40,7 @@ def test_collect_iter():
         md.QuoteBlock(footnote1),
         md.Table([1,2], [['a', footnote2]]),
     ])
-    assert output == ({link_collect1: None, 
+    assert output == ({link_collect1: None,
                        link_collect2: None,
                        link_collect3: None},
                       {footnote1: None,
@@ -61,10 +58,9 @@ def test_header_str(args, expected):
 # _pad
 def test_pad_raises_valueerror():
     with pytest.raises(ValueError):
-        list(md._pad(['a', 'b'], [3, 3], [md.LEFT, 'left']))
+        list(md._pad(['a', 'b'], [3, 3], [md.LEFT, 'left'])) # type: ignore
 #══════════════════════════════════════════════════════════════════════════════
 # _markers
 def test_markers():
     for style in md.TextStyle:
         assert style in md._markers
-

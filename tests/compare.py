@@ -1,3 +1,4 @@
+# type: ignore
 from time import perf_counter
 from typing import Any
 
@@ -13,7 +14,7 @@ paragraph1 = '''
 list1 = [
    'YAMDOG is based on use of small abjects',
    'SnakeMD'
-] 
+]
 
 heading2 = 'Similarities'
 
@@ -36,7 +37,7 @@ def build_yamdog_doc():
     return doc
 
 def build_snakemd_doc():
-    import snakemd as md
+    import snakemd as md # type: ignore
 
     doc = md.Document(docname)
 

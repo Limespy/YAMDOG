@@ -123,7 +123,7 @@ heading = md.Heading(4, 'Example heading')
 
 ==highlighted text==
 
-==*~~**All styles combined**~~*==
+==***~~All styles combined~~***==
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})
@@ -230,7 +230,7 @@ table.compact = True
 *Python source*
 
 ```python
-listing = md.Listing(md.UNORDERED, 
+listing = md.Listing(md.UNORDERED,
                      ['Just normal text',
                       md.Text('some stylised text', {md.ITALIC}),
                       md.Checkbox(False, 'Listings can include checkboxes'),
@@ -491,10 +491,10 @@ And here the full source code that wrote this README. This can serve as a more a
 [The python file can also be found here](https://github.com/Limespy/YAMDOG/blob/main/readme.py)
 
 ```python
-import yamdog as md
-
 import pathlib
 import re
+
+import yamdog as md
 
 def make_examples(source: str) -> md.Document:
     '''Examples are collected via source code introspection'''
@@ -529,7 +529,7 @@ def make_examples(source: str) -> md.Document:
     doc += examples['document']
 
     #%% adding to document
-    # document += 
+    # document +=
 
     #%% heading
     heading = md.Heading(4, 'Example heading')
@@ -585,7 +585,7 @@ def make_examples(source: str) -> md.Document:
     doc += examples['table compact attribute']
 
     #%% listing
-    listing = md.Listing(md.UNORDERED, 
+    listing = md.Listing(md.UNORDERED,
                          ['Just normal text',
                           md.Text('some stylised text', {md.ITALIC}),
                           md.Checkbox(False, 'Listings can include checkboxes'),
@@ -684,7 +684,7 @@ def make_quick_start_guide(name, pypiname, source):
         f'''Import name is the same as install name, {pypiname}.''',
         md.CodeBlock(f'import {pypiname}', 'python'),
         md.Paragraph(['Since the package is accessed often, I use abbreviation',
-                      md.Code('md'), 
+                      md.Code('md'),
                       ' for MarkDown. The abbreviation is used throughout this document.']),
         md.CodeBlock(f'import {pypiname} as md', 'python'),
         md.Heading(2, 'Using the package'),
@@ -785,6 +785,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 ```
 
 [1]: <https://pypi.org/project/yamdog> ""

@@ -22,7 +22,7 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 readme = "README.md"
-dependencies = []
+dynamic = ["dependencies", "optional-dependencies"]
 authors = [
     { name = "Limespy" },
 ]
@@ -35,14 +35,8 @@ Homepage = "https://github.com/Limespy/yamdog"
 Changelog = "https://github.com/Limespy/yamdog/blob/main/README.md#Changelog"
 "Issue Tracker" = "https://github.com/Limespy/yamdog/issues"
 
-[project.optional-dependencies]
-dev = [
-    "colorama >= 0.4",
-    "mypy==0.991",
-    "pytest >=7.2.0",
-    "pytest-cov >= 4.0.0",
-    "snakemd",
-    "tomli-w >= 1.0.0",
-    "twine >= 4.0",
-    "wheel >= 0.38",
-]
+[tool.setuptools.dynamic]
+dependencies = {file = ["dependencies.txt"]}
+
+[tool.setuptools.dynamic.optional-dependencies]
+dev = {file = "dependencies_dev.txt"}

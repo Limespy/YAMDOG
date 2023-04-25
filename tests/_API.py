@@ -3,9 +3,15 @@
 # IMPORT
 import os
 import pathlib
+import sys
+from typing import Callable
+from typing import NoReturn
+from typing import Optional
+from typing import Union
 
 PATH_TESTS = pathlib.Path(__file__).parent
 PATH_UNITTESTS = PATH_TESTS / 'unittests'
+PATH_LINTCONFIG = PATH_TESTS / '.pylintrc'
 PATH_REPO = PATH_TESTS.parent
 # First item in src should be the package
 PATH_SRC = next((PATH_REPO / 'src').glob('*'))
@@ -13,32 +19,41 @@ PATH_SRC = next((PATH_REPO / 'src').glob('*'))
 # TEST CASES
 
 #══════════════════════════════════════════════════════════════════════════════
-def unittests(verbosity: int = 2) -> None:
+def unittests() -> None:
     import pytest
     CWD = pathlib.Path.cwd()
     os.chdir(str(PATH_UNITTESTS))
-    output = pytest.main([])
+    pytest.main([])
     os.chdir(str(CWD))
-    return output
+    return None
 #══════════════════════════════════════════════════════════════════════════════
-def typing(shell: bool = False) -> tuple[str, str, int]:
+def typing(shell: bool = True) -> Optional[tuple[str, str, int]]:
     args = [str(PATH_SRC), '--config-file', str(PATH_TESTS / "mypy.ini")]
     if shell:
-        os.system(f'mypy {" ".join(args)}')
+        from mypy.main import main
+        main(args = args)
     else:
-        from mypy import api as mypy
-        return mypy.run(args)
+        from mypy import api
+        return api.run(args)
 #══════════════════════════════════════════════════════════════════════════════
-def comparison():
-    import compare
-    compare.main()
+def lint() -> None:
+    from pylint import lint
+    lint.Run([str(PATH_SRC),
+              f'--rcfile={str(PATH_LINTCONFIG)}',
+              '--output-format=colorized',
+              '--msg-template="{path}:{line}:{column}:{msg_id}:{symbol}\n'
+                              '    {msg}"'])
+#══════════════════════════════════════════════════════════════════════════════
+def compare() -> None:
+    import compare as _compare
+    _compare.main()
 #══════════════════════════════════════════════════════════════════════════════
 def performance():
     import yamdog as md
-    from yamdog.API import _sanitise_str
+    from yamdog._API import _sanitise_str
 
     from pydantic import BaseModel
-    from pympler.asizeof import asizeof
+    from pympler.asizeof import asizeof # type: ignore
 
     import sys
     from timeit import timeit
@@ -76,8 +91,8 @@ def performance():
     kwargs = {'content': ['a','b','c'],
               'separator': '_'}
     Paragraph_dc([], separator = '_')
-    paragraph_dc = Paragraph_dc(**kwargs)
-    paragraph_pyd = Paragraph_pyd(**kwargs)
+    paragraph_dc = Paragraph_dc(**kwargs) # type: ignore
+    paragraph_pyd = Paragraph_pyd(**kwargs) # type: ignore
     print(sys.getsizeof(paragraph_dc))
     print(sys.getsizeof(paragraph_pyd))
     print(asizeof(paragraph_dc))
@@ -123,3 +138,16 @@ kwargs = {'content': ['a','b','c'], 'separator': '_'}
     print(time_pyd)
     time_dc = timeit("paragraph_dc(**kwargs)", setup = "import yamdog as md; paragraph_dc = md.Paragraph;kwargs = {'content': ['a','b','c'], 'separator': '_'}")
     print(time_dc)
+#══════════════════════════════════════════════════════════════════════════════
+TESTS: dict[str, Callable] = {function.__name__: function # type: ignore
+                              for function in
+                              (lint, unittests, compare, typing)}
+def main(args: list[str] = sys.argv[1:]) -> Union[list, None, NoReturn]:
+    if not args:
+        return None
+    if args[0] == '--all':
+        return [test() for test in TESTS.values()]
+    return [TESTS[arg[2:]]() for arg in args if arg.startswith('--')]
+#══════════════════════════════════════════════════════════════════════════════
+if __name__ == '__main__':
+    main()
