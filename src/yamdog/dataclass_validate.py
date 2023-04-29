@@ -71,7 +71,11 @@ def _validate_fields(obj: _DataclassWrapped, ExceptionType = TypeError) -> None:
     '''
     errormessages = []
     for name, field in obj.__dataclass_fields__.items():
-        if messages := _validate(field.type, getattr(obj, name)):
+        try:
+            attribute = getattr(obj, name)
+        except AttributeError:
+            continue
+        if messages := _validate(field.type, attribute):
             errormessages.append(f'{name}: {" ".join(messages)}')
     if errormessages:
         errormessages.insert(0, f'{obj.__class__.__qualname__} parameters not matching types')

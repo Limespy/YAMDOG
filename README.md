@@ -13,6 +13,7 @@ YAMDOG is toolkit for creating Markdown text using Python. Markdown is a light a
 
 ### Table of Content <!-- omit in toc -->
 
+        - [1](#1)
 - [Quick start guide](#quick-start-guide)
     - [The first steps](#the-first-steps)
         - [Install](#install)
@@ -32,11 +33,13 @@ YAMDOG is toolkit for creating Markdown text using Python. Markdown is a light a
             - [Address](#address)
             - [Quote block](#quote-block)
         - [Combining elements into a document](#combining-elements-into-a-document)
-            - [Example heading](#example-heading1)
+            - [Example heading](#example-heading)
 - [Changelog](#changelog)
 - [Further reading](#further-reading)
 - [Annexes](#annexes)
     - [Annex 1: README Python source](#annex-1-readme-python-source)
+
+### 1
 
 # Quick start guide
 
@@ -123,7 +126,7 @@ heading = md.Heading(4, 'Example heading')
 
 ==highlighted text==
 
-==***~~All styles combined~~***==
+**==*~~All styles combined~~*==**
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})
@@ -765,6 +768,7 @@ def make_readme(name, pypiname, source):
         md.Heading(3, 'Table of Content', in_TOC = False),
         md.TOC()
         ])
+    doc += md.Heading(3,1)
     doc += make_quick_start_guide(name, pypiname, source)
     doc += make_changelog()
     doc += make_further_reading()

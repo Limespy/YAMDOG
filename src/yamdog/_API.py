@@ -21,29 +21,36 @@ from .dataclass_validate import field as _field
 _maybeslots = {} if sys.version_info[1] <= 9 else {'slots': True}
 #══════════════════════════════════════════════════════════════════════════════
 # AUXILIARIES
-_INDENT = '    '
+_INDENT = ' ' * 4
 
 class Alignment(_enum.Enum):
-    LEFT = 1
-    CENTER = 2
-    RIGHT = 3
+    LEFT = ':--'
+    CENTER = ':-:'
+    RIGHT = '--:'
 
 LEFT, CENTER, RIGHT = Alignment # type: ignore
 
 class ListingStyle(_enum.Enum):
-    ORDERED = 1
-    UNORDERED = 2
-    DEFINITION = 3
+                # prefixes, prefix_length
+    ORDERED = (lambda : (f'{n}. ' for n in _itertools.count(1, 1)), 3)
+    UNORDERED = (lambda : _itertools.repeat('- '), 2)
+    DEFINITION = (lambda : _itertools.repeat(': '), 2)
 
 ORDERED, UNORDERED, DEFINITION = ListingStyle # type: ignore
 
 class TextStyle(_enum.Enum):
-    BOLD = 1
-    ITALIC = 2
-    STRIKETHROUGH = 3
-    HIGHLIGHT = 4
+    BOLD = '**'
+    ITALIC = '*'
+    STRIKETHROUGH = '~~'
+    HIGHLIGHT = '=='
 
 BOLD, ITALIC, STRIKETHROUGH, HIGHLIGHT = TextStyle # type: ignore
+class TextLevel(_enum.Enum):
+    SUBSCRIPT = -1
+    NORMAL = 0
+    SUPERSCRIPT = 1
+
+SUBSCRIPT, NORMAL, SUPERSCRIPT = TextLevel # type: ignore
 
 class Flavour(_enum.Enum):
     BASIC = 1
@@ -114,11 +121,9 @@ class IterableElement(ContainerElement):
 @_dataclass
 class InlineElement(Element):
     """So far only a marker class to wether element can be treated as inline"""
-    pass
+    ...
 #══════════════════════════════════════════════════════════════════════════════
 # BASIC ELEMENTS
-
-#══════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Paragraph(IterableElement):
     content: list = _field(default_factory = list)
@@ -138,10 +143,6 @@ class Paragraph(IterableElement):
         else:
             raise TypeError(f"+= has not been implemented for Paragraph with object {repr(other)} type '{type(other).__name__}'")
 #══════════════════════════════════════════════════════════════════════════════
-_markers = {BOLD:          '**',
-            ITALIC:        '*',
-            STRIKETHROUGH: '~~',
-            HIGHLIGHT:     '=='}
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Text(ContainerElement, InlineElement):
     '''Stylised text
@@ -151,7 +152,9 @@ class Text(ContainerElement, InlineElement):
     text : has method str
         text to be containes
     style: set[str]
-        style of the text, options are: bold, italic, strikethrough, subscript, superscript, emphasis
+        style of the text, options are: bold, italic, strikethrough, emphasis
+    level: TextLevel
+        NORMAL, SUBSCRIPT or SUPERSCRIPT
 
     Raises
     ------
@@ -160,23 +163,19 @@ class Text(ContainerElement, InlineElement):
     '''
     content: _Any
     style: set[TextStyle] = _field(default_factory = set)
-    level: int = 0 # Normal = 0, subscript = -1, superscipt = 1
-    #─────────────────────────────────────────────────────────────────────────
-    def __post_init__(self):
-        if not -1 <= self.level <= 1:
-            raise ValueError(f'Text level must be 0, -1 or 1, not {self.level}')
+    level: TextLevel = NORMAL
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         # superscipt and subcript have to be the innermost
-        if self.level == 1:
+        if self.level == SUPERSCRIPT:
             text = f'^{self.content}^'
-        elif self.level == -1:
+        elif self.level == SUBSCRIPT:
             text = f'~{self.content}~'
         else:
             text = str(self.content)
 
         for substyle in self.style:
-            marker = _markers[substyle]
+            marker = substyle.value
             text = f'{marker}{text}{marker}'
         return text
     #─────────────────────────────────────────────────────────────────────────
@@ -213,16 +212,16 @@ class Text(ContainerElement, InlineElement):
         return self
     #─────────────────────────────────────────────────────────────────────────
     def superscribe(self):
-        self.level = 1
+        self.level = SUPERSCRIPT
         return self
     #─────────────────────────────────────────────────────────────────────────
     def subscribe(self):
-        self.level = -1
+        self.level = SUBSCRIPT
         return self
     #─────────────────────────────────────────────────────────────────────────
-    def normal(self):
+    def normalise(self):
         '''Removes superscript or subscript'''
-        self.level = 0
+        self.level = NORMAL
         return self
     #─────────────────────────────────────────────────────────────────────────
     def clear(self):
@@ -230,9 +229,6 @@ class Text(ContainerElement, InlineElement):
         self.style = set()
         return self
 #══════════════════════════════════════════════════════════════════════════════
-markers = {UNORDERED: (lambda : _itertools.repeat('- '), 2),
-           ORDERED: (lambda : (f'{n}. ' for n in _itertools.count(1, 1)), 3),
-           DEFINITION: (lambda : _itertools.repeat(': '), 2)}
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Listing(IterableElement):
     style: ListingStyle
@@ -242,19 +238,20 @@ class Listing(IterableElement):
         return getattr(self.content, attr)
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        prefixes, prefix_length = markers[self.style]
+        prefixes, prefix_length = self.style.value
         output = []
         for item, prefix in zip(self.content, prefixes()):
             if (isinstance(item, tuple)
                 and len(item) == 2
                 and isinstance(item[1], Listing)):
                 output.append(prefix + str(item[0]))
-                output.append(_INDENT + str(item[1]).replace('\n', '\n'+ _INDENT))
+                output.append(_INDENT
+                              + str(item[1]).replace('\n', '\n'+ _INDENT))
             else:
-                output.append(prefix + str(item).replace('\n',
-                                                         '\n'+ ' '* prefix_length))
+                output.append(prefix
+                              + str(item).replace('\n',
+                                                  '\n'+ ' '* prefix_length))
         return '\n'.join(output)
-
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Checkbox(ContainerElement):
@@ -280,7 +277,7 @@ def make_checklist(items: _Iterable[tuple[bool, _Any]]):
 class Heading(ContainerElement):
     level: int
     content: _Any
-    alt_style: bool = False # Underline instead of #
+    alt_style: bool = False # Underline ----- instead of #
     in_TOC: bool = True
     #─────────────────────────────────────────────────────────────────────────
     def __post_init__(self) -> None:
@@ -306,14 +303,13 @@ class Code(InlineElement):
 class CodeBlock(InlineElement):
     content: _Any
     language: _Any = ''
-    _tics: int = 3
+    _tics: int = _field(init = False, default_factory = lambda: 3)
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         text = str(self.content)
         language = _sanitise_str(str(self.language))
-        self._tics = (self.content._tics + 1
-                      if isinstance(self.content, CodeBlock)
-                      else self._tics)
+        if isinstance(self.content, CodeBlock):
+            self._tics = self.content._tics + 1
         return f'{"`" * self._tics}{language}\n{text}\n{"`" * self._tics}'
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
@@ -324,11 +320,10 @@ class Address(InlineElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Link(InlineElement):
-    """Do not change `_index`"""
     content: _Any
     target: _Any
     title: _Any = None
-    _index: int = 0
+    _index: int = _field(init = False, default_factory = lambda: 0)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
         return ({} if self.title is None else {self: None},
@@ -342,18 +337,17 @@ class Link(InlineElement):
                 f'[{self.content}]({self.target})')
 #══════════════════════════════════════════════════════════════════════════════
 # Table
-def _pad(items: list[str],
+def _pad(items: _Iterable[str],
          widths: _Iterable[int],
          alignments: _Iterable[Alignment]
          ) -> _Generator[str, None, None]:
     for alignment, item, width in zip(alignments, items, widths):
         if alignment == LEFT:
-            yield f'{item}{(width - len(item)) * " "}'
+            yield f'{item:<{width}}'
         elif alignment == CENTER:
-            item += ((width - len(item))//2) * ' '
-            yield f'{(width - len(item)) * " "}{item}'
+            yield f'{item:^{width}}'
         elif alignment == RIGHT:
-            yield f'{(width - len(item)) * " "}{item}'
+            yield f'{item:>{width}}'
         else:
             raise ValueError(f'alignment {alignment} not recognised')
 #══════════════════════════════════════════════════════════════════════════════
@@ -375,10 +369,10 @@ class Table(IterableElement):
         return output
     #─────────────────────────────────────────────────────────────────────────
     def append(self, row: _Collection) -> None:
-        if hasattr(row, '__iter__'):
+        if isinstance(row, _Iterable):
             self.content.append(row)
         else:
-            raise TypeError(f"'{type(row)}' is not _Iterable")
+            raise TypeError(f"'{type(row)}' is not iterable")
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         header = [str(item) for item in self.header]
@@ -389,26 +383,18 @@ class Table(IterableElement):
             if len(row) > max_rowlen:
                 max_rowlen = len(row)
         header += ['']*(max_rowlen - len(header))
-        alignment = list(self.alignment) + [LEFT] * (max_rowlen - len(self.alignment))
-        alignment_row: list[str] = []
-        if self.compact:
-            output = ['|'.join(header)]
-            # Alignments
-
-            for i, item in enumerate(alignment):
-                if item == LEFT:
-                    alignment_row.append(':--')
-                elif item == CENTER:
-                    alignment_row.append(':-:')
-                elif item == RIGHT:
-                    alignment_row.append('--:')
-            output.append('|'.join(alignment_row))
+        alignment = (list(self.alignment)
+                     + [LEFT] * (max_rowlen - len(self.alignment)))
+        if self.compact: # Compact table
+            output = ['|'.join(header),
+                      '|'.join(item.value for item in alignment)]
             for row in self.content:
                 row = list(row) + [''] * (max_rowlen - len(row))
                 output.append('|'.join(str(item) for item in row))
-        else:
+        else: # Pretty table
             # maximum cell widths
-            max_widths = [max(len(item), 3) for item in header] + (max_rowlen - headerlen) * [3]
+            max_widths = ([max(len(item), 3) for item in header]
+                          + (max_rowlen - headerlen) * [3])
             content = [[str(item) for item in row] for row in self.content]
             for row in content:
                 for i, cell in enumerate(row):
@@ -417,6 +403,7 @@ class Table(IterableElement):
 
             output = [_str_row_sparse(_pad(header, max_widths, alignment))]
             # Alignments and paddings
+            alignment_row: list[str] = []
             for item, width in zip(alignment, max_widths):
                 if item == LEFT:
                     alignment_row.append(':'+ (width - 1) * '-')
@@ -435,7 +422,7 @@ class Table(IterableElement):
 class Footnote(InlineElement):
     """Do not change `_index`"""
     content: _Any
-    _index: int = 0 # TODO something with `_field` to prevent assignment at init
+    _index: int = _field(init = False)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
         return {}, {self: None}
@@ -444,7 +431,11 @@ class Footnote(InlineElement):
         return hash(str(self.content))
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        return f'[^{self._index}]'
+        try:
+            return f'[^{self._index}]'
+        except AttributeError as exc:
+            raise ValueError('Footnote has not been prepared'
+                             'by the Document') from exc
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Math(InlineElement):
@@ -504,7 +495,7 @@ class TOC(Element):
     Also during conversion to text the text for table of contents
     is stored here.'''
     level: int = 4
-    _text: str = ''
+    _text: str = _field(init = False)
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return self._text
@@ -524,10 +515,10 @@ def _preprocess_document(content: _Iterable
     and sanitises string objects'''
     collectables: tuple[dict[Link, None],
                         dict[Footnote, None]] = ({}, {})
-    new_content = []
+    new_content: list[str] = []
     TOCs: dict[int, list[TOC]] = _defaultdict(list)
-    headings = []
     top_level = 0
+    headings: list[Heading] = []
     for item in content:
         if isinstance(item, str):
             new_content.append(_sanitise_str(item).strip())
@@ -573,36 +564,29 @@ def _process_header(language: _Any, content: _Any) -> str:
         return f';;;\n{content}\n;;;'
     return f'---{language}\n{content}\n---'
 #══════════════════════════════════════════════════════════════════════════════
-def _translate(text, *args):
-    return str(text).translate(''.maketrans(*args))
-#══════════════════════════════════════════════════════════════════════════════
 def _heading_ref_texts(text: str) -> tuple[str, str]:
     '''Generates visible link text and internal link target'''
-    return (_translate(text, '', '', '[]'),
-            '#' + _translate(text, ' ', '-', _punctuation).lower())
+    return (text.translate(''.maketrans('', '', '[]')),
+            '#' + text.translate(''.maketrans(' ', '-', _punctuation)).lower())
 #══════════════════════════════════════════════════════════════════════════════
 def _process_TOC(TOCs: dict[int, list[TOC]],
                  headings: _Iterable[Heading],
                  top_level: int
                  ) -> None:
     '''Generates table of content string and sets it to correct TOCs'''
-    refcounts: dict[str, int] = {} # {reference: number of headings}
+    refcounts: dict[str, int] = _defaultdict(lambda: -1) # {reference: index}
     TOCtexts: dict[int, list[str]] = _defaultdict(list) # {level: texts}
     for heading in headings:
-        text, ref = _heading_ref_texts(heading.content)
+        text, ref = _heading_ref_texts(str(heading.content))
+        refcounts[ref] += 1
 
-        if ref in refcounts: # Handling multiple same refs
-            refcounts[ref] += 1
-            ref += str(refcounts[ref])
-        else:
-            refcounts[ref] = 0
+        if n_duplicates := refcounts[ref]: # Handling multiple same refs
+            ref += str(n_duplicates)
 
-        line = '- '.join(((heading.level - top_level) * _INDENT,
-                            f'[{text}]({ref})'))
-
-        for level in TOCs:
-            if heading.level <= level:
-                TOCtexts[level].append(line)
+        line = f'{(heading.level - top_level) * _INDENT}- [{text}]({ref})'
+        for TOClevel in TOCs:
+            if heading.level <= TOClevel:
+                TOCtexts[TOClevel].append(line)
 
     for level, toclist in TOCs.items(): # Adding appropriate texts
         text = '\n'.join(TOCtexts[level])
@@ -617,14 +601,14 @@ class Document(IterableElement):
                                         default_factory = tuple) # type: ignore
     #─────────────────────────────────────────────────────────────────────────
     def __add__(self, item: _Any):
+        return self.__iadd__(item)
+    #─────────────────────────────────────────────────────────────────────────
+    def __iadd__(self, item: _Any):
         if isinstance(item, self.__class__):
             self.content += item.content
         else:
             self.content.append(item)
         return self
-    #─────────────────────────────────────────────────────────────────────────
-    def __iadd__(self, item: _Any):
-        return self.__add__(item)
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self)  -> str:
         content, TOCs, top_level, headings, refs, footnotes = _preprocess_document(self.content)
@@ -641,4 +625,4 @@ class Document(IterableElement):
         if TOCs and headings: # Creating TOC
             _process_TOC(TOCs, headings, top_level)
 
-        return '\n\n'.join(str(item) for item in content) + '\n'
+        return '\n\n'.join(str(item) for item in content)

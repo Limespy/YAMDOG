@@ -8,8 +8,8 @@ from yamdog import _API
     (('test',{md.BOLD}), '**test**'),
     (('test',{md.ITALIC}), '*test*'),
     (('test',{md.STRIKETHROUGH}), '~~test~~'),
-    (('test',set(), 1), '^test^'),
-    (('test',set(), -1), '~test~'),
+    (('test',set(), md.SUPERSCRIPT), '^test^'),
+    (('test',set(), md.SUBSCRIPT), '~test~'),
     (('test',{md.HIGHLIGHT}), '==test=='),
     (('test',{md.BOLD, md.ITALIC}), '***test***')
 ])
@@ -20,9 +20,9 @@ def test_text_invalid_style():
     with pytest.raises(TypeError):
         md.Text('test', {'test'}) # type: ignore
 #──────────────────────────────────────────────────────────────────────────────
-def test_text_superscrip_subscipt():
-    with pytest.raises(ValueError):
-        md.Text('test', set(), -3) # type: ignore
+def test_text_superscrip_subscipt_not_TextLevel_raises():
+    with pytest.raises(TypeError):
+        md.Text('test', set(), 'subscript') # type: ignore
 #──────────────────────────────────────────────────────────────────────────────
 def test_text_style_edit():
     text = md.Text('test')
@@ -40,9 +40,9 @@ def test_text_style_edit():
     assert md.HIGHLIGHT not in text.unhighlight().style
     assert not text.style
     text.superscribe()
-    assert text.subscribe().level == -1
-    assert text.superscribe().level == 1
-    assert text.normal().level == 0
+    assert text.subscribe().level == md.SUBSCRIPT
+    assert text.superscribe().level == md.SUPERSCRIPT
+    assert text.normalise().level == md.NORMAL
     text.bold().italicize().highlight()
     assert not text.clear().style
 #══════════════════════════════════════════════════════════════════════════════
@@ -75,7 +75,7 @@ def test_paragraph_iadd_paragraph():
     paragraph1 += paragraph2
     assert paragraph1 == md.Paragraph(['test', 'case'])
 #──────────────────────────────────────────────────────────────────────────────
-def test_paragraph_iadd_typeerror():
+def test_paragraph_iadd_with_not_InlineElement_or_Paragraph_raises_TypeError():
     with pytest.raises(TypeError):
         paragraph = md.Paragraph(['test'])
         paragraph += 'test'
@@ -95,7 +95,7 @@ def test_paragraph_iadd_typeerror():
 def test_heading_str(args, expected):
     assert str(md.Heading(*args)) == expected
 #──────────────────────────────────────────────────────────────────────────────
-def test_heading_raises_valueerror():
+def test_heading_level_0_raises_valueerror():
     with pytest.raises(ValueError):
         md.Heading(0, 'test')
 #══════════════════════════════════════════════════════════════════════════════
@@ -103,16 +103,19 @@ def test_heading_raises_valueerror():
 @pytest.mark.parametrize('args1,args2',
                          (((1, 2), (1, 2)),
                           ((1, 2), ('1', 2)),
-                          ((1, 2, 3), (1, 2, 3)),
-                          ((1, 2, 3, 4), (1, 2, 3, 5))))
-def test_link_same_hash(args1, args2):
+                          ((1, 2, 3), (1, 2, 3))))
+def test_Link_same_hash(args1, args2):
     assert hash(md.Link(*args1)) == hash(md.Link(*args2))
 #──────────────────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize('args1,args2',
                          (((1, 1), (1, 2)),
                           ((1, 2, 1), (1, 2, 3))))
-def test_link_different_hash(args1, args2):
+def test_Link_different_hash(args1, args2):
     assert hash(md.Link(*args1)) != hash(md.Link(*args2))
+#──────────────────────────────────────────────────────────────────────────────
+def test_Link_index_init_raises():
+    with pytest.raises(TypeError):
+        md.Link('Text', 'doge.png', 'Title', 1) # type: ignore
 #══════════════════════════════════════════════════════════════════════════════
 # Listing
 @pytest.mark.parametrize("args,expected", [
@@ -120,7 +123,7 @@ def test_link_different_hash(args1, args2):
     ((md.UNORDERED, [1, 2]), '- 1\n- 2'),
     ((md.DEFINITION, [1, 2]), ': 1\n: 2'),
 ])
-def test_listing_str(args, expected):
+def test_Listing_str(args, expected):
     assert str(md.Listing(*args)) == expected
 #══════════════════════════════════════════════════════════════════════════════
 # Checkbox
@@ -128,10 +131,10 @@ def test_listing_str(args, expected):
     ((True, 'test'), '[x] test'),
     ((False, 'test'), '[ ] test')
 ])
-def test_checkbox_str(args, expected):
+def test_Checkbox_str(args, expected):
     assert str(md.Checkbox(*args)) == expected
 #──────────────────────────────────────────────────────────────────────────────
-def test_checkbox_add_raises_type_error():
+def test_Checkbox_add_raises_type_error():
     with pytest.raises(TypeError):
         md.Checkbox(True, 'test') + md.Checkbox(False, 'test')
 #══════════════════════════════════════════════════════════════════════════════
@@ -160,14 +163,14 @@ a|b|c|
 1|2|3333|
 4|5|6|7'''),
 ])
-def test_table_str(args, expected_pretty, expected_compact):
+def test_Table_str(args, expected_pretty, expected_compact):
     assert str(md.Table(*args)) == expected_pretty.strip()
     assert str(md.Table(*args, compact = True)) == expected_compact.strip() # type: ignore
 #──────────────────────────────────────────────────────────────────────────────
-def test_table_alignment_fill():
+def test_Table_alignment_fill():
     assert str(md.Table(['a', 'b'], [[1, 2]])) == '| a   | b   |\n| :-- | :-- |\n| 1   | 2   |'
 #──────────────────────────────────────────────────────────────────────────────
-def test_table_append():
+def test_Table_append():
     table = md.Table(['a', 'b'], [[1, 2]])
     table.append([3, 4])
     assert table.content == [[1,2], [3,4]]
@@ -175,11 +178,11 @@ def test_table_append():
         table.append(1) # type: ignore
 #══════════════════════════════════════════════════════════════════════════════
 # Address
-def test_address_str():
+def test_Address_str():
     assert str(md.Address('test')) == '<test>'
 #══════════════════════════════════════════════════════════════════════════════
 # Emoji
-def test_emoji_str():
+def test_Emoji_str():
     assert str(md.Emoji('test')) == ':test:'
 #══════════════════════════════════════════════════════════════════════════════
 # Math
@@ -189,10 +192,10 @@ def test_emoji_str():
     (('test',md.GITHUB),     '$test$'),
     (('test',md.GITLAB),     '$`test`$')
 ])
-def test_math_str(args, expected):
+def test_Math_str(args, expected):
     assert str(md.Math(*args)) == expected
 #──────────────────────────────────────────────────────────────────────────────
-def test_math_invalid_flavour():
+def test_Math_invalid_flavour():
     with pytest.raises(ValueError):
         str(md.Math('test', md.PYPI))
 #══════════════════════════════════════════════════════════════════════════════
@@ -203,7 +206,7 @@ def test_math_invalid_flavour():
     (('test',md.GITHUB),     '$$\ntest\n$$'),
     (('test',md.GITLAB),     '```math\ntest\n```')
 ])
-def test_mathblock_str(args, expected):
+def test_MathBlock_str(args, expected):
     assert str(md.MathBlock(*args)) == expected
 #──────────────────────────────────────────────────────────────────────────────
 def test_mathblock_invalid_flavour():
@@ -231,6 +234,10 @@ def test_code_str(args, expected):
 ])
 def test_codeblock_str(args, expected):
     assert str(md.CodeBlock(*args)) == expected
+#──────────────────────────────────────────────────────────────────────────────
+def test_CodeBlock_tics_init_raises():
+    with pytest.raises(TypeError):
+        md.CodeBlock('python', 'a = 1', 1) # type: ignore
 #══════════════════════════════════════════════════════════════════════════════
 # QuoteBlock
 @pytest.mark.parametrize("args,expected", [
@@ -238,7 +245,7 @@ def test_codeblock_str(args, expected):
     (('1',), '> 1'),
     (('1\n2',), '> 1\n> 2')
 ])
-def test_quoteblock_str(args, expected):
+def test_QuoteBlock_str(args, expected):
     assert str(md.QuoteBlock(*args)) == expected
 #══════════════════════════════════════════════════════════════════════════════
 # Image
@@ -246,7 +253,7 @@ def test_quoteblock_str(args, expected):
                                            (('',''), '![]()'),
                                            (('',''), '![]()'),
                                            ((2,1),   '![1](2)'),])
-def test_qimagek_str(args, expected):
+def test_Image_str(args, expected):
     assert str(md.Image(*args)) == expected
 #══════════════════════════════════════════════════════════════════════════════
 # Document
@@ -256,7 +263,7 @@ def test_qimagek_str(args, expected):
                                   (['test', 'item'],),
                                   (['test\n', 'item'],),
                                   (['test\n', '    item'],)])
-def test_document_str_simple(args):
+def test_Document_str_simple(args):
     if len(args) == 0:
         expected = []
     elif len(args) >= 1:
@@ -272,7 +279,7 @@ def test_document_str_simple(args):
                                   (['test'], ('toml', 'test')),
                                   (['test'], ('json', 'test')),
                                   (['test'], ('php', 'test'))])
-def test_document_str_header(args):
+def test_Document_str_header(args):
 
     expected = [_API._process_header(*args[1])]
     expected += [_API._sanitise_str(item) if isinstance(item, str) else str(item)
@@ -282,11 +289,14 @@ def test_document_str_header(args):
 #──────────────────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("args", [([], ('yaml',)),
                                   ([], ('toml', 'test', 'test'))])
-def test_document_header_invalid(args):
+def test_Document_header_invalid(args):
     with pytest.raises(TypeError):
         md.Document(*args)
 #──────────────────────────────────────────────────────────────────────────────
-def test_document_str_footnotes():
+def test_Document_with_TOC_and_non_str_Heading_valid():
+    str(md.Document([md.TOC(), md.Heading(1, 1)]))
+#──────────────────────────────────────────────────────────────────────────────
+def test_Document_str_footnotes():
     footnote1 = md.Footnote('a')
     footnote2 = md.Footnote('b')
     doc = md.Document([footnote1, footnote2, footnote1])
@@ -294,7 +304,11 @@ def test_document_str_footnotes():
     expected += [f'[^1]: {footnote1.content}\n[^2]: {footnote2.content}']
     assert str(doc) == '\n\n'.join(expected)
 #──────────────────────────────────────────────────────────────────────────────
-def test_document_str_references():
+def test_Document_footnote_index_init_raises():
+    with pytest.raises(TypeError):
+        md.Footnote('test', 1) # type: ignore
+#──────────────────────────────────────────────────────────────────────────────
+def test_Document_str_references():
     link0 = md.Link('no', 'no')
     link1 = md.Link('simple', 'url1', 'title1')
     link2 = md.Link('simple', 'url2', 'title2')
@@ -308,7 +322,7 @@ def test_document_str_references():
     assert link1.target == link3.target and link1.title == link3.title
     assert str(doc) == '\n\n'.join(expected)
 #──────────────────────────────────────────────────────────────────────────────
-def test_document_toc():
+def test_Document_toc():
     headings = [md.Heading(i, f'h{i}') for i in range(1,6,1)]
     # creating example
     reftext, ref = _API._heading_ref_texts(headings[3].content) # level up to 4
@@ -323,13 +337,13 @@ def test_document_toc():
     headings.append(headings[0])
     assert str(md.Document([md.TOC()] + headings)).startswith(str(listing))
 #──────────────────────────────────────────────────────────────────────────────
-def test_document_iadd_element():
+def test_Document_iadd_element():
     document = md.Document(['test'])
     text = md.Text('case', {md.BOLD})
     document += text
     assert document == md.Document(['test', text])
 #──────────────────────────────────────────────────────────────────────────────
-def test_document_iadd_document():
+def test_Document_iadd_document():
     document1 = md.Document(['test'])
     document2 = md.Document(['case'])
     document1 += document2

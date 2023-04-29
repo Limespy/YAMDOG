@@ -272,6 +272,7 @@ def make_readme(name, pypiname, source):
         md.Heading(3, 'Table of Content', in_TOC = False),
         md.TOC()
         ])
+    doc += md.Heading(3,1)
     doc += make_quick_start_guide(name, pypiname, source)
     doc += make_changelog()
     doc += make_further_reading()
