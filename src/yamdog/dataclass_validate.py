@@ -1,5 +1,6 @@
 from dataclasses import *
 from dataclasses import dataclass as _dataclass_std
+from functools import wraps
 from typing import _UnionGenericAlias # type: ignore
 from typing import Any as _Any
 from typing import Callable as _Callable
@@ -78,8 +79,10 @@ def _validate_fields(obj: _DataclassWrapped, ExceptionType = TypeError) -> None:
         if messages := _validate(field.type, attribute):
             errormessages.append(f'{name}: {" ".join(messages)}')
     if errormessages:
-        errormessages.insert(0, f'{obj.__class__.__qualname__} parameters not matching types')
-        raise ExceptionType('\n    - '.join(errormessages))
+        errormessages.insert(0,
+                             f'{obj.__class__.__qualname__} '
+                             'parameters not matching types')
+        raise ExceptionType('\n    '.join(errormessages))
 #──────────────────────────────────────────────────────────────────────────────
 def validate(cls: type):
     '''Validate after 'init', 'post_init' or not at all (`None`)
@@ -87,12 +90,21 @@ def validate(cls: type):
     #─────────────────────────────────────────────────────────────────────────
     # Creating a new wrapper to wrap the original dataclass wrapper
     # to wrap init or post_init
-    method_name = '__init__'
-    original_method = getattr(cls, method_name)
-    #─────────────────────────────────────────────────────────────────────
-    def validation_wrap(self, *args, **kwargs) -> None:
-        original_method(self, *args, **kwargs)
-        _validate_fields(self)
+
+    if hasattr(cls, '__post_init__'):
+        method_name = '__post_init__'
+        original_method = getattr(cls, method_name)
+        @wraps(original_method)
+        def validation_wrap(self, *args, **kwargs) -> None:
+            _validate_fields(self)
+            original_method(self, *args, **kwargs)
+    else:
+        method_name = '__init__'
+        original_method = getattr(cls, method_name)
+        @wraps(original_method)
+        def validation_wrap(self, *args, **kwargs) -> None:
+            original_method(self, *args, **kwargs)
+            _validate_fields(self)
     #─────────────────────────────────────────────────────────────────────
     setattr(cls, method_name, validation_wrap)
     return cls

@@ -46,9 +46,9 @@ class TextStyle(_enum.Enum):
 
 BOLD, ITALIC, STRIKETHROUGH, HIGHLIGHT = TextStyle # type: ignore
 class TextLevel(_enum.Enum):
-    SUBSCRIPT = -1
-    NORMAL = 0
-    SUPERSCRIPT = 1
+    SUBSCRIPT = '~'
+    NORMAL = ''
+    SUPERSCRIPT = '^'
 
 SUBSCRIPT, NORMAL, SUPERSCRIPT = TextLevel # type: ignore
 
@@ -167,12 +167,8 @@ class Text(ContainerElement, InlineElement):
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         # superscipt and subcript have to be the innermost
-        if self.level == SUPERSCRIPT:
-            text = f'^{self.content}^'
-        elif self.level == SUBSCRIPT:
-            text = f'~{self.content}~'
-        else:
-            text = str(self.content)
+        marker = self.level.value
+        text = f'{marker}{self.content}{marker}'
 
         for substyle in self.style:
             marker = substyle.value
@@ -287,11 +283,10 @@ class Heading(ContainerElement):
     def __str__(self) -> str:
         text = str(self.content)
         toccomment = '' if self.in_TOC else ' <!-- omit in toc -->'
-        if self.alt_style and (self.level == 1 or self.level == 2):
-            return ''.join((text, toccomment, '\n',
-                            ('=', '-')[self.level - 1] * len(text)))
-        else: # The normal style with #
-            return ''.join((self.level * "#", ' ', text, toccomment))
+        if self.alt_style and self.level in (1, 2):
+            return (text + toccomment +'\n'
+                    + ('=' if self.level == 1 else '-') * len(text))
+        return self.level * "#" + ' ' + text + toccomment
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Code(InlineElement):
@@ -300,7 +295,7 @@ class Code(InlineElement):
         return f'`{self.content}`'
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
-class CodeBlock(InlineElement):
+class CodeBlock(Element):
     content: _Any
     language: _Any = ''
     _tics: int = _field(init = False, default_factory = lambda: 3)
@@ -470,6 +465,7 @@ class QuoteBlock(ContainerElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class HRule(Element):
+    '''Simple a horizontal line'''
     def __str__(self) -> str:
         return '---'
 #══════════════════════════════════════════════════════════════════════════════
@@ -537,6 +533,8 @@ def _preprocess_document(content: _Iterable
     return new_content, TOCs, top_level, headings, *collectables
 #══════════════════════════════════════════════════════════════════════════════
 def _process_footnotes(footnotes: dict[Footnote, None]) -> str:
+    '''Makes footone list text from collected footnotes and updates
+    their indices'''
     footnotelines = []
     for index, footnote in enumerate(footnotes, start = 1):
         footnote._index = index
@@ -544,9 +542,11 @@ def _process_footnotes(footnotes: dict[Footnote, None]) -> str:
     return '\n'.join(footnotelines)
 #══════════════════════════════════════════════════════════════════════════════
 def _process_references(references: dict[Link, None]) -> str:
+    '''Makes reference list text from collected link references and updates
+    and their indices'''
     reftargets: dict[str, list[Link]] = _defaultdict(list)
     for link in references: # matching links to references
-        reftargets[f'<{link.target}> "{link.title}"'] += [link]
+        reftargets[f'<{link.target}> "{link.title}"'].append(link)
     reflines = []
     for index, (reftext, links) in enumerate(reftargets.items(), start = 1):
         for link in links: # Adding indices to links and reftext
