@@ -51,6 +51,7 @@ def _generic_alias(fieldtype, value: str) -> list[str]:
     return []
 #──────────────────────────────────────────────────────────────────────────────
 def _union(fieldtypes: tuple[type, ...], value: str) -> list[str]:
+    '''If one of the types in the union matches'''
     errormessages = []
     for _type in fieldtypes:
         if not (errormessage := _validate(_type, value)):

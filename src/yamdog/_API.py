@@ -3,16 +3,19 @@
 Handles"""
 #══════════════════════════════════════════════════════════════════════════════
 # IMPORT
-import enum as _enum
 import itertools as _itertools
 import re as _re
 import sys
 from collections import defaultdict as _defaultdict
 from collections.abc import Collection as _Collection
 from collections.abc import Iterable as _Iterable
+from collections.abc import Sequence as _Sequence
+from enum import Enum as _Enum
+from functools import partial as _partial
 from string import punctuation as _punctuation
 from typing import Any as _Any
 from typing import Generator as _Generator
+from typing import Optional as _Optional
 from typing import Union as _Union
 
 from .dataclass_validate import dataclass as _dataclass
@@ -22,44 +25,43 @@ _maybeslots = {} if sys.version_info[1] <= 9 else {'slots': True}
 #══════════════════════════════════════════════════════════════════════════════
 # AUXILIARIES
 _INDENT = ' ' * 4
+class Alignment(_Enum):
+    LEFT = _partial(lambda width: ':'+ (width - 1) * '-')
+    CENTER = _partial(lambda width: ':'+ (width - 2) * '-' + ':')
+    RIGHT = _partial(lambda width: (width - 1) * '-' + ':')
 
-class Alignment(_enum.Enum):
-    LEFT = ':--'
-    CENTER = ':-:'
-    RIGHT = '--:'
+LEFT, CENTER, RIGHT = Alignment
 
-LEFT, CENTER, RIGHT = Alignment # type: ignore
-
-class ListingStyle(_enum.Enum):
+class ListingStyle(_Enum):
                 # prefixes, prefix_length
     ORDERED = (lambda : (f'{n}. ' for n in _itertools.count(1, 1)), 3)
     UNORDERED = (lambda : _itertools.repeat('- '), 2)
     DEFINITION = (lambda : _itertools.repeat(': '), 2)
 
-ORDERED, UNORDERED, DEFINITION = ListingStyle # type: ignore
+ORDERED, UNORDERED, DEFINITION = ListingStyle
 
-class TextStyle(_enum.Enum):
+class TextStyle(_Enum):
     BOLD = '**'
     ITALIC = '*'
     STRIKETHROUGH = '~~'
     HIGHLIGHT = '=='
 
-BOLD, ITALIC, STRIKETHROUGH, HIGHLIGHT = TextStyle # type: ignore
-class TextLevel(_enum.Enum):
+BOLD, ITALIC, STRIKETHROUGH, HIGHLIGHT = TextStyle
+class TextLevel(_Enum):
     SUBSCRIPT = '~'
     NORMAL = ''
     SUPERSCRIPT = '^'
 
-SUBSCRIPT, NORMAL, SUPERSCRIPT = TextLevel # type: ignore
+SUBSCRIPT, NORMAL, SUPERSCRIPT = TextLevel
 
-class Flavour(_enum.Enum):
+class Flavour(_Enum):
     BASIC = 1
     EXTENDED = 2
     GITHUB = 3
     GITLAB = 4
     PYPI = 5
 
-BASIC, EXTENDED, GITHUB, GITLAB, PYPI = Flavour # type: ignore
+BASIC, EXTENDED, GITHUB, GITLAB, PYPI = Flavour
 
 _re_begin = _re.compile(r'^\s*\n\s*')
 _re_middle = _re.compile(r'\s*\n\s*')
@@ -73,7 +75,7 @@ def _is_collectable(obj) -> bool:
     return hasattr(obj, '_collect') and isinstance(obj, Element)
 #══════════════════════════════════════════════════════════════════════════════
 def _collect_iter(items: _Iterable) -> tuple[dict, dict]:
-    '''Doing ordered set _Union thing
+    '''Doing ordered set union thing
 
     Parameters
     ----------
@@ -120,7 +122,7 @@ class IterableElement(ContainerElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass
 class InlineElement(Element):
-    """So far only a marker class to wether element can be treated as inline"""
+    """A marker class to whether element can be treated as inline"""
     ...
 #══════════════════════════════════════════════════════════════════════════════
 # BASIC ELEMENTS
@@ -155,11 +157,6 @@ class Text(ContainerElement, InlineElement):
         style of the text, options are: bold, italic, strikethrough, emphasis
     level: TextLevel
         NORMAL, SUBSCRIPT or SUPERSCRIPT
-
-    Raises
-    ------
-    ValueError
-        for invalid style attributes
     '''
     content: _Any
     style: set[TextStyle] = _field(default_factory = set)
@@ -176,42 +173,52 @@ class Text(ContainerElement, InlineElement):
         return text
     #─────────────────────────────────────────────────────────────────────────
     def bold(self):
+        '''Makes bolded'''
         self.style.add(BOLD)
         return self
     #─────────────────────────────────────────────────────────────────────────
     def unbold(self):
+        '''Removes bolding'''
         self.style.discard(BOLD)
         return self
     #─────────────────────────────────────────────────────────────────────────
     def italicize(self):
+        '''Makes italics'''
         self.style.add(ITALIC)
         return self
     #─────────────────────────────────────────────────────────────────────────
     def unitalicize(self):
+        '''Removes italics'''
         self.style.discard(ITALIC)
         return self
     #─────────────────────────────────────────────────────────────────────────
     def strike(self):
+        '''Adds strikethrough'''
         self.style.add(STRIKETHROUGH)
         return self
     #─────────────────────────────────────────────────────────────────────────
     def unstrike(self):
+        '''Removes strikethrough'''
         self.style.discard(STRIKETHROUGH)
         return self
     #─────────────────────────────────────────────────────────────────────────
     def highlight(self):
+        '''Adds highlighting'''
         self.style.add(HIGHLIGHT)
         return self
     #─────────────────────────────────────────────────────────────────────────
     def unhighlight(self):
+        '''Removes highlighting'''
         self.style.discard(HIGHLIGHT)
         return self
     #─────────────────────────────────────────────────────────────────────────
     def superscribe(self):
+        '''Makes text superscript'''
         self.level = SUPERSCRIPT
         return self
     #─────────────────────────────────────────────────────────────────────────
     def subscribe(self):
+        '''Makes text subscript'''
         self.level = SUBSCRIPT
         return self
     #─────────────────────────────────────────────────────────────────────────
@@ -227,6 +234,15 @@ class Text(ContainerElement, InlineElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Listing(IterableElement):
+    '''List of items
+
+    Parameters
+    ----------
+    style: ListingStyle
+        ORDERED, UNORDERED or DEFINITION
+    content: Iterable
+        Content of the listing
+    '''
     style: ListingStyle
     content: _Iterable[_Any]
     #─────────────────────────────────────────────────────────────────────────
@@ -251,6 +267,15 @@ class Listing(IterableElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Checkbox(ContainerElement):
+    '''[x] Checkbox
+
+    Parameters
+    ----------
+    checked: bool
+        Whether the checkbox is checked or not
+    content: Any
+        content coming after the checkbox, e.g. [x] content
+    '''
     checked: bool
     content: _Any
     #─────────────────────────────────────────────────────────────────────────
@@ -267,7 +292,18 @@ class Checkbox(ContainerElement):
         raise TypeError(f"unsupported operand type(s) for +: '{type(self).__name__}' and '{type(other).__name__}'")
 #══════════════════════════════════════════════════════════════════════════════
 def make_checklist(items: _Iterable[tuple[bool, _Any]]):
-    return Listing(UNORDERED, (Checkbox(*item) for item in items)) # type: ignore
+    '''Assembles a Listing of checkboxes from iterable
+
+    Parameters
+    ----------
+    items: Iterable[tuple[bool, Any]]
+        Wheteher the checkbox is checked and the content of the checkbox
+    Returns
+    -------
+    Listing
+        Unorderd listing containing checkboxes'''
+    return Listing(UNORDERED,
+                   (Checkbox(*item) for item in items)) # type: ignore
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Heading(ContainerElement):
@@ -290,6 +326,13 @@ class Heading(ContainerElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Code(InlineElement):
+    '''Inline monospace text
+
+    Parameters
+    ----------
+    content: Any
+        Content to be turned into inline monospace text
+    '''
     content: _Any
     def __str__(self) -> str:
         return f'`{self.content}`'
@@ -325,17 +368,45 @@ class Link(InlineElement):
                 self.content._collect()[1] if _is_collectable(self.content) else {})
     #─────────────────────────────────────────────────────────────────────────
     def __hash__(self) -> int:
-        return hash(str(self.target)) + hash(str(self.title)) + hash(str(self.content))
+        return (hash(str(self.target))
+                + hash(str(self.title))
+                + hash(str(self.content)))
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        return (f'[{self.content}][{self._index}]' if self._index else
-                f'[{self.content}]({self.target})')
+        return (f'[{self.content}][{self._index}]' if self._index
+                else f'[{self.content}]({self.target})')
 #══════════════════════════════════════════════════════════════════════════════
 # Table
 def _pad(items: _Iterable[str],
          widths: _Iterable[int],
          alignments: _Iterable[Alignment]
          ) -> _Generator[str, None, None]:
+    '''Generator that pads text based on alignments given
+
+    Parameters
+    ----------
+    items : Iterable[str]
+        _description_
+    widths : Iterable[int]
+        _description_
+    alignments : Iterable[Alignment]
+        Text alignment tags
+
+    Returns
+    -------
+    Generator[str, None, None]
+        _description_
+
+    Yields
+    ------
+    str
+        padded text
+
+    Raises
+    ------
+    ValueError
+        if Alignment is not recognised
+    '''
     for alignment, item, width in zip(alignments, items, widths):
         if alignment == LEFT:
             yield f'{item:<{width}}'
@@ -345,16 +416,35 @@ def _pad(items: _Iterable[str],
             yield f'{item:>{width}}'
         else:
             raise ValueError(f'alignment {alignment} not recognised')
-#══════════════════════════════════════════════════════════════════════════════
-def _str_row_sparse(row: _Iterable[str]):
-    return '| ' + ' | '.join(row) + ' |'
 #─────────────────────────────────────────────────────────────────────────────
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Table(IterableElement):
+    '''Table of
+
+    Parameters
+    ----------
+    header: Iterable
+        Header of the table. Will be padded to table width
+    content: list[Collection]
+        Main body of the table
+    alignment: Union[Alignment, Collection[Alingment]]
+        Alignment of the columns. LEFT, CENTER, RIGHT
+        If just Alignment, the all columns are aligned with that.
+        If iterable, then each item corresponds to one column and
+        rest are padded. If empty, and alignment_pad is None, then
+        padding is LEFT.
+    compact: bool, default False
+        When converting to str, is the table compact or padded
+    alignment_pad: Optional[Alignmetn], default None
+        By default missing alignments are padded with the alignment of
+        the last alignment in the iterable, but this can be overridden here.
+    '''
     header: _Iterable
     content: list[_Collection] = _field(default_factory = list)
-    alignment: _Collection[Alignment] = _field(default_factory = list)
+    alignment: _Union[Alignment,
+                      _Iterable[Alignment]] = _field(default_factory = list)  # type: ignore
     compact: bool = False
+    alignment_pad: _Optional[Alignment] = None
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
         output = _collect_iter(self.header)
@@ -378,44 +468,48 @@ class Table(IterableElement):
             if len(row) > max_rowlen:
                 max_rowlen = len(row)
         header += ['']*(max_rowlen - len(header))
-        alignment = (list(self.alignment)
-                     + [LEFT] * (max_rowlen - len(self.alignment)))
+
+        if isinstance(self.alignment, Alignment):
+            alignment = [self.Alignment] * max_rowlen
+        else:
+            alignment = list(self.alignment)
+            alignment_pad = ((alignment[-1] if alignment else LEFT)
+                             if self.alignment_pad is None
+                             else self.alignment_pad)
+            alignment.extend([alignment_pad] * (max_rowlen - len(alignment)))
+
+        content = [[str(item) for item in row] for row in self.content]
+
         if self.compact: # Compact table
-            output = ['|'.join(header),
-                      '|'.join(item.value for item in alignment)]
-            for row in self.content:
-                row = list(row) + [''] * (max_rowlen - len(row))
-                output.append('|'.join(str(item) for item in row))
+            output = [header, (item.value(3) for item in alignment)]
+            for row in content:
+                row.extend([''] * (max_rowlen - len(row)))
+                output.append((str(item) for item in row))
+            return '\n'.join(('|'.join(row) for row in output))
         else: # Pretty table
             # maximum cell widths
             max_widths = ([max(len(item), 3) for item in header]
                           + (max_rowlen - headerlen) * [3])
-            content = [[str(item) for item in row] for row in self.content]
+            # content = [[str(item) for item in row] for row in self.content]
             for row in content:
                 for i, cell in enumerate(row):
                     if len(cell) > max_widths[i]:
                         max_widths[i] = len(cell)
 
-            output = [_str_row_sparse(_pad(header, max_widths, alignment))]
+            output = [_pad(header, max_widths, alignment)]
             # Alignments and paddings
-            alignment_row: list[str] = []
-            for item, width in zip(alignment, max_widths):
-                if item == LEFT:
-                    alignment_row.append(':'+ (width - 1) * '-')
-                elif item == CENTER:
-                    alignment_row.append(':'+ (width - 2) * '-' + ':')
-                elif item == RIGHT:
-                    alignment_row.append((width - 1) * '-' + ':')
-            output.append(_str_row_sparse(item for item in alignment_row))
+            alignment_row: list[str] = [item.value(width) for item, width
+                                        in zip(alignment, max_widths)]
+
+            output.append((item for item in alignment_row))
             for row in content:
-                row = list(row) + [''] * (max_rowlen - len(row))
-                output.append(_str_row_sparse(_pad(row, max_widths, alignment)))
-        return '\n'.join(output)
+                row.extend([''] * (max_rowlen - len(row)))
+                output.append(_pad(row, max_widths, alignment))
+            return '\n'.join('| ' + ' | '.join(row) + ' |' for row in output)
 #══════════════════════════════════════════════════════════════════════════════
 # EXTENDED ELEMENTS
 @_dataclass(**_maybeslots)
 class Footnote(InlineElement):
-    """Do not change `_index`"""
     content: _Any
     _index: int = _field(init = False)
     #─────────────────────────────────────────────────────────────────────────
