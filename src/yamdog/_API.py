@@ -559,6 +559,15 @@ class Footnote(ContainerElement, InlineElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Math(InlineElement):
+    '''Inline KaTeX math notation
+
+    Parameters
+    ----------
+    text : Any
+        Text to be displayed in the block
+    flavour: Flavour, default GITHUB
+        Markdown flavour to be be used
+    '''
     text: _Any
     flavour: Flavour = GITHUB
     #─────────────────────────────────────────────────────────────────────────
@@ -571,13 +580,13 @@ class Math(InlineElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class MathBlock(Element):
-    '''_summary_
+    '''KaTeX math notation in a block
 
     Parameters
     ----------
     text : Any
         Text to be displayed in the block
-    flavour: Flavour
+    flavour: Flavour, default GITHUB
         Markdown flavour to be be used
     '''
     text: _Any
@@ -605,8 +614,17 @@ class HRule(Element):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Image(Element):
+    '''
+
+    Parameters
+    ----------
+    path: Any
+        path to the image
+    alt_text: Any, default 'image'
+        Text that is displayed if the image cannot be shown
+    '''
     path: _Any
-    alt_text: _Any = ''
+    alt_text: _Any = 'image'
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f'![{self.alt_text}]({self.path})'
