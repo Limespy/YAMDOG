@@ -20,12 +20,16 @@ from typing import Union as _Union
 
 from .dataclass_validate import dataclass as _dataclass
 from .dataclass_validate import field as _field
-# To skip using slots on python 3.9
-_maybeslots = {} if sys.version_info[1] <= 9 else {'slots': True}
 #══════════════════════════════════════════════════════════════════════════════
 # AUXILIARIES
+# To skip using slots on python 3.9
+_maybeslots = {} if sys.version_info[1] <= 9 else {'slots': True}
+
 _INDENT = ' ' * 4
 class Alignment(_Enum):
+    # _EnumDict __setitem__ detect lambdas as descriptors,
+    # because they have __get__ attribute,
+    # so they need to wrapped with a functools.partial
     LEFT = _partial(lambda width: ':'+ (width - 1) * '-')
     CENTER = _partial(lambda width: ':'+ (width - 2) * '-' + ':')
     RIGHT = _partial(lambda width: (width - 1) * '-' + ':')
@@ -67,9 +71,7 @@ _re_begin = _re.compile(r'^\s*\n\s*')
 _re_middle = _re.compile(r'\s*\n\s*')
 _re_end = _re.compile(r'\s*\n\s*$')
 def _sanitise_str(text: str):
-    text = _re_begin.sub('', text)
-    text = _re_end.sub('', text)
-    return _re_middle.sub(' ', text)
+    return _re_middle.sub(' ', _re_end.sub('', _re_begin.sub('', text)))
 #══════════════════════════════════════════════════════════════════════════════
 def _is_collectable(obj) -> bool:
     return hasattr(obj, '_collect') and isinstance(obj, Element)
@@ -128,7 +130,16 @@ class InlineElement(Element):
 # BASIC ELEMENTS
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Paragraph(IterableElement):
-    content: list = _field(default_factory = list)
+    '''Section of text
+
+    Parameters
+    ----------
+    content: list[Any]
+        contents of the paragraph. You can add more wih +=
+    separator: str, default ''
+        separator string to be used when combining the content into string
+    '''
+    content: list[_Any] = _field(default_factory = list)
     separator: str = ''
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
@@ -341,7 +352,7 @@ class Code(InlineElement):
 class CodeBlock(Element):
     content: _Any
     language: _Any = ''
-    _tics: int = _field(init = False, default_factory = lambda: 3)
+    _tics: int = _field(init = False, default = 3)
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         text = str(self.content)
@@ -358,10 +369,21 @@ class Address(InlineElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Link(InlineElement):
+    '''Link with to a target. Can be a reference in a document
+
+    Parameters
+    ----------
+    content: Any
+        Content to be displayed
+    target: Any
+        address where link points to. E.g. an URL
+    title: Any, default None
+        If set, transforms link to a reference in a document.
+    '''
     content: _Any
     target: _Any
     title: _Any = None
-    _index: int = _field(init = False, default_factory = lambda: 0)
+    _index: int = _field(init = False, default = 0)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
         return ({} if self.title is None else {self: None},
@@ -509,22 +531,31 @@ class Table(IterableElement):
 #══════════════════════════════════════════════════════════════════════════════
 # EXTENDED ELEMENTS
 @_dataclass(**_maybeslots)
-class Footnote(InlineElement):
+class Footnote(ContainerElement, InlineElement):
+    '''Make a numbered note with text in the bottom
+
+    Parameters
+    ----------
+    content: Any
+        Content to be displayed as the note text
+    '''
     content: _Any
-    _index: int = _field(init = False)
+    _index: int = _field(init = False, default = 0)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
-        return {}, {self: None}
+
+        links, footnotes = (self.content._collect()
+                            if _is_collectable(self.content)
+                            else ({}, {}))
+        own = {self: None}
+        own |= footnotes
+        return links, own
     #─────────────────────────────────────────────────────────────────────────
     def __hash__(self) -> int:
         return hash(str(self.content))
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        try:
-            return f'[^{self._index}]'
-        except AttributeError as exc:
-            raise ValueError('Footnote has not been prepared'
-                             'by the Document') from exc
+        return f'[^{self._index}]'
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Math(InlineElement):
@@ -540,6 +571,15 @@ class Math(InlineElement):
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class MathBlock(Element):
+    '''_summary_
+
+    Parameters
+    ----------
+    text : Any
+        Text to be displayed in the block
+    flavour: Flavour
+        Markdown flavour to be be used
+    '''
     text: _Any
     flavour: Flavour = GITHUB
     #─────────────────────────────────────────────────────────────────────────
@@ -548,7 +588,7 @@ class MathBlock(Element):
             return f'$$\n{self.text}\n$$'
         elif self.flavour == GITLAB:
             return f'```math\n{self.text}\n```'
-        raise ValueError(f'Flavour {self.flavour} not recognised')
+        raise ValueError(f'Flavour {self.flavour} not suppoted')
 #══════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class QuoteBlock(ContainerElement):
@@ -585,7 +625,7 @@ class TOC(Element):
     Also during conversion to text the text for table of contents
     is stored here.'''
     level: int = 4
-    _text: str = _field(init = False)
+    _text: str = _field(init = False, default = '')
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return self._text
@@ -629,11 +669,10 @@ def _preprocess_document(content: _Iterable
 def _process_footnotes(footnotes: dict[Footnote, None]) -> str:
     '''Makes footone list text from collected footnotes and updates
     their indices'''
-    footnotelines = []
     for index, footnote in enumerate(footnotes, start = 1):
         footnote._index = index
-        footnotelines.append(f'[^{index}]: {footnote.content}')
-    return '\n'.join(footnotelines)
+    return '\n'.join(f'[^{footnote._index}]: {footnote.content}'
+                     for footnote in footnotes)
 #══════════════════════════════════════════════════════════════════════════════
 def _process_references(references: dict[Link, None]) -> str:
     '''Makes reference list text from collected link references and updates
