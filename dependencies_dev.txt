@@ -8,4 +8,5 @@ reorder-python-imports >= 3.9.0
 snakemd
 tomli-w >= 1.0.0
 twine >= 4.0
+tox >= 4.5.1
 wheel >= 0.38

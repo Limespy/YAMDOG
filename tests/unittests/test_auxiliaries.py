@@ -1,8 +1,12 @@
 import pytest
-import yamdog._API as md
-
+import yamdog as md
+from yamdog import _API
 #══════════════════════════════════════════════════════════════════════════════
-# clean_string
+# _INDENT
+def test_INDENT_is_4_spaces():
+    assert _API._INDENT == ' '*4
+#══════════════════════════════════════════════════════════════════════════════
+# _sanitise_str
 @pytest.mark.parametrize("string, expected", [
     ('test', 'test'),
     (' test', ' test'),
@@ -11,15 +15,7 @@ import yamdog._API as md
     ('''test
         text''',  'test text')])
 def test_string_sanitisation(string, expected):
-    assert md._sanitise_str(string) == expected
-#══════════════════════════════════════════════════════════════════════════════
-# Element
-#──────────────────────────────────────────────────────────────────────────────
-def test_element_add():
-    element1 = md.Heading(1, 'test')
-    element2 = md.Link('test', 'case')
-    assert element1 + element2 == md.Document([element1, element2])
-    assert element2 + element1 == md.Document([element2, element1])
+    assert _API._sanitise_str(string) == expected
 #══════════════════════════════════════════════════════════════════════════════
 # _collect_iter
 def test_collect_iter():
@@ -28,7 +24,7 @@ def test_collect_iter():
     link_collect3 = md.Link('link-collect3', 'link-collect3', 'link-collect3')
     footnote1 = md.Footnote('footnote1')
     footnote2 = md.Footnote('footnote2')
-    output = md._collect_iter([
+    output = _API._collect_iter([
         'test-no-collect',
         md.Text('test-no-collect1', {md.BOLD}),
         md.Text(link_collect3, {md.ITALIC}),
@@ -53,9 +49,9 @@ def test_collect_iter():
     (('json', 'test'),  ';;;\ntest\n;;;'),
     (('php', 'test'),   '---php\ntest\n---')])
 def test_header_str(args, expected):
-    assert str(md._process_header(*args)) == expected
+    assert str(_API._process_header(*args)) == expected
 #══════════════════════════════════════════════════════════════════════════════
 # _pad
 def test_pad_raises_ValueError_with_incorrect_alignment():
     with pytest.raises(ValueError):
-        list(md._pad(['a', 'b'], [3, 3], [md.LEFT, 'left'])) # type: ignore
+        list(_API._pad(['a', 'b'], [3, 3], [md.LEFT, 'left'])) # type: ignore

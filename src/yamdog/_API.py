@@ -1,11 +1,11 @@
 """API module
 
 Handles"""
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 # IMPORT
 import itertools as _itertools
 import re as _re
-import sys
+import sys as _sys
 from collections import defaultdict as _defaultdict
 from collections.abc import Collection as _Collection
 from collections.abc import Iterable as _Iterable
@@ -20,13 +20,13 @@ from typing import Union as _Union
 
 from .dataclass_validate import dataclass as _dataclass
 from .dataclass_validate import field as _field
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 # AUXILIARIES
 # To skip using slots on python 3.9
-_maybeslots = {} if sys.version_info[1] <= 9 else {'slots': True}
+_maybeslots = {} if _sys.version_info[1] <= 9 else {'slots': True}
 
 _INDENT = ' ' * 4
-class Alignment(_Enum):
+class Align(_Enum):
     # _EnumDict __setitem__ detect lambdas as descriptors,
     # because they have __get__ attribute,
     # so they need to wrapped with a functools.partial
@@ -34,13 +34,13 @@ class Alignment(_Enum):
     CENTER = _partial(lambda width: ':'+ (width - 2) * '-' + ':')
     RIGHT = _partial(lambda width: (width - 1) * '-' + ':')
 
-LEFT, CENTER, RIGHT = Alignment
+LEFT, CENTER, RIGHT = Align
 
 class ListingStyle(_Enum):
                 # prefixes, prefix_length
-    ORDERED = (lambda : (f'{n}. ' for n in _itertools.count(1, 1)), 3)
-    UNORDERED = (lambda : _itertools.repeat('- '), 2)
-    DEFINITION = (lambda : _itertools.repeat(': '), 2)
+    ORDERED = _partial(lambda : (f'{n}. ' for n in _itertools.count(1, 1)))
+    UNORDERED = _partial(_itertools.repeat, '- ')
+    DEFINITION = _partial(_itertools.repeat, ': ')
 
 ORDERED, UNORDERED, DEFINITION = ListingStyle
 
@@ -66,28 +66,28 @@ class Flavour(_Enum):
     PYPI = 5
 
 BASIC, EXTENDED, GITHUB, GITLAB, PYPI = Flavour
-
+#═════════════════════════════════════════════════════════════════════════════
 _re_begin = _re.compile(r'^\s*\n\s*')
 _re_middle = _re.compile(r'\s*\n\s*')
 _re_end = _re.compile(r'\s*\n\s*$')
 def _sanitise_str(text: str):
     return _re_middle.sub(' ', _re_end.sub('', _re_begin.sub('', text)))
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 def _is_collectable(obj) -> bool:
     return hasattr(obj, '_collect') and isinstance(obj, Element)
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 def _collect_iter(items: _Iterable) -> tuple[dict, dict]:
     '''Doing ordered set union thing
 
     Parameters
     ----------
-    items : _Iterable
+    items : Iterable
         items to be checked
 
     Returns
     -------
     tuple[dict, dict]
-        list of unique items
+        unique items
     '''
     output: tuple[dict[Link, None], dict[Footnote, None]] = ({}, {})
     for item in items:
@@ -95,14 +95,14 @@ def _collect_iter(items: _Iterable) -> tuple[dict, dict]:
             for old, new in zip(output, item._collect()):
                 old |= new
     return output
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 # ELEMENTS BASE CLASSES
 @_dataclass(**_maybeslots)
 class Element:
     #─────────────────────────────────────────────────────────────────────────
     def __add__(self, other):
         return Document([self, other]) # type: ignore
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class ContainerElement(Element):
     #─────────────────────────────────────────────────────────────────────────
@@ -112,7 +112,7 @@ class ContainerElement(Element):
     def _collect(self) -> tuple[dict, dict]:
         return (self.content._collect() # type: ignore
                 if _is_collectable(self.content) else ({}, {})) # type: ignore
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class IterableElement(ContainerElement):
     #─────────────────────────────────────────────────────────────────────────
@@ -121,12 +121,12 @@ class IterableElement(ContainerElement):
     #─────────────────────────────────────────────────────────────────────────
     def __iter__(self):
         return iter(self.content)   # type: ignore
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass
 class InlineElement(Element):
     """A marker class to whether element can be treated as inline"""
     ...
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 # BASIC ELEMENTS
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Paragraph(IterableElement):
@@ -155,7 +155,7 @@ class Paragraph(IterableElement):
             return self
         else:
             raise TypeError(f"+= has not been implemented for Paragraph with object {repr(other)} type '{type(other).__name__}'")
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Text(ContainerElement, InlineElement):
     '''Stylised text
@@ -238,11 +238,12 @@ class Text(ContainerElement, InlineElement):
         self.level = NORMAL
         return self
     #─────────────────────────────────────────────────────────────────────────
-    def clear(self):
+    def reset(self):
         '''Removes all formatting'''
         self.style = set()
+        self.level = NORMAL
         return self
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Listing(IterableElement):
     '''List of items
@@ -261,9 +262,8 @@ class Listing(IterableElement):
         return getattr(self.content, attr)
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        prefixes, prefix_length = self.style.value
         output = []
-        for item, prefix in zip(self.content, prefixes()):
+        for item, prefix in zip(self.content, self.style.value()):
             if (isinstance(item, tuple)
                 and len(item) == 2
                 and isinstance(item[1], Listing)):
@@ -273,9 +273,9 @@ class Listing(IterableElement):
             else:
                 output.append(prefix
                               + str(item).replace('\n',
-                                                  '\n'+ ' '* prefix_length))
+                                                  '\n'+ ' '* len(prefix)))
         return '\n'.join(output)
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Checkbox(ContainerElement):
     '''[x] Checkbox
@@ -301,7 +301,7 @@ class Checkbox(ContainerElement):
     #─────────────────────────────────────────────────────────────────────────
     def __add__(self, other):
         raise TypeError(f"unsupported operand type(s) for +: '{type(self).__name__}' and '{type(other).__name__}'")
-#══════════════════════════════════════════════════════════════════════════════
+#─────────────────────────────────────────────────────────────────────────────
 def make_checklist(items: _Iterable[tuple[bool, _Any]]):
     '''Assembles a Listing of checkboxes from iterable
 
@@ -315,7 +315,7 @@ def make_checklist(items: _Iterable[tuple[bool, _Any]]):
         Unorderd listing containing checkboxes'''
     return Listing(UNORDERED,
                    (Checkbox(*item) for item in items)) # type: ignore
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Heading(ContainerElement):
     level: int
@@ -334,7 +334,7 @@ class Heading(ContainerElement):
             return (text + toccomment +'\n'
                     + ('=' if self.level == 1 else '-') * len(text))
         return self.level * "#" + ' ' + text + toccomment
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Code(InlineElement):
     '''Inline monospace text
@@ -347,7 +347,7 @@ class Code(InlineElement):
     content: _Any
     def __str__(self) -> str:
         return f'`{self.content}`'
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class CodeBlock(Element):
     content: _Any
@@ -360,13 +360,13 @@ class CodeBlock(Element):
         if isinstance(self.content, CodeBlock):
             self._tics = self.content._tics + 1
         return f'{"`" * self._tics}{language}\n{text}\n{"`" * self._tics}'
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Address(InlineElement):
     content: _Any
     def __str__(self) -> str:
         return f'<{self.content}>'
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Link(InlineElement):
     '''Link with to a target. Can be a reference in a document
@@ -397,11 +397,11 @@ class Link(InlineElement):
     def __str__(self) -> str:
         return (f'[{self.content}][{self._index}]' if self._index
                 else f'[{self.content}]({self.target})')
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 # Table
 def _pad(items: _Iterable[str],
          widths: _Iterable[int],
-         alignments: _Iterable[Alignment]
+         alignments: _Iterable[Align]
          ) -> _Generator[str, None, None]:
     '''Generator that pads text based on alignments given
 
@@ -411,8 +411,8 @@ def _pad(items: _Iterable[str],
         _description_
     widths : Iterable[int]
         _description_
-    alignments : Iterable[Alignment]
-        Text alignment tags
+    alignments : Iterable[Align]
+        Text align tags
 
     Returns
     -------
@@ -427,17 +427,17 @@ def _pad(items: _Iterable[str],
     Raises
     ------
     ValueError
-        if Alignment is not recognised
+        if Align is not recognised
     '''
-    for alignment, item, width in zip(alignments, items, widths):
-        if alignment == LEFT:
+    for align, item, width in zip(alignments, items, widths):
+        if align == LEFT:
             yield f'{item:<{width}}'
-        elif alignment == CENTER:
+        elif align == CENTER:
             yield f'{item:^{width}}'
-        elif alignment == RIGHT:
+        elif align == RIGHT:
             yield f'{item:>{width}}'
         else:
-            raise ValueError(f'alignment {alignment} not recognised')
+            raise ValueError(f'align {align} not recognised')
 #─────────────────────────────────────────────────────────────────────────────
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Table(IterableElement):
@@ -449,24 +449,24 @@ class Table(IterableElement):
         Header of the table. Will be padded to table width
     content: list[Collection]
         Main body of the table
-    alignment: Union[Alignment, Collection[Alingment]]
+    align: Union[Align, Iterable[Alingment]]
         Alignment of the columns. LEFT, CENTER, RIGHT
-        If just Alignment, the all columns are aligned with that.
+        If just Align, the all columns are aligned with that.
         If iterable, then each item corresponds to one column and
         rest are padded. If empty, and alignment_pad is None, then
         padding is LEFT.
     compact: bool, default False
         When converting to str, is the table compact or padded
-    alignment_pad: Optional[Alignmetn], default None
-        By default missing alignments are padded with the alignment of
-        the last alignment in the iterable, but this can be overridden here.
+    alignment_pad: Optional[Align], default None
+        By default missing alignments are padded with the align of
+        the last align in the iterable, but this can be overridden here.
     '''
     header: _Iterable
-    content: list[_Collection] = _field(default_factory = list)
-    alignment: _Union[Alignment,
-                      _Iterable[Alignment]] = _field(default_factory = list)  # type: ignore
+    content: list[_Iterable] = _field(default_factory = list)
+    align: _Union[Align,
+                  _Iterable[Align]] = _field(default_factory = list)  # type: ignore
     compact: bool = False
-    alignment_pad: _Optional[Alignment] = None
+    alignment_pad: _Optional[Align] = None
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
         output = _collect_iter(self.header)
@@ -476,6 +476,18 @@ class Table(IterableElement):
         return output
     #─────────────────────────────────────────────────────────────────────────
     def append(self, row: _Collection) -> None:
+        '''Appends to content, but checks whe
+
+        Parameters
+        ----------
+        row : _Collection
+            Content to be added as a row
+
+        Raises
+        ------
+        TypeError
+            if
+        '''
         if isinstance(row, _Iterable):
             self.content.append(row)
         else:
@@ -485,25 +497,27 @@ class Table(IterableElement):
         header = [str(item) for item in self.header]
         headerlen = len(header)
 
+        content = [[str(item) for item in row] for row in self.content]
+
         max_rowlen = headerlen
-        for row in self.content:
+        for row in content:
             if len(row) > max_rowlen:
                 max_rowlen = len(row)
         header += ['']*(max_rowlen - len(header))
 
-        if isinstance(self.alignment, Alignment):
-            alignment = [self.Alignment] * max_rowlen
+        if isinstance(self.align, Align):
+            align = [self.Align] * max_rowlen
         else:
-            alignment = list(self.alignment)
-            alignment_pad = ((alignment[-1] if alignment else LEFT)
+            align = list(self.align)
+            alignment_pad = ((align[-1] if align else LEFT)
                              if self.alignment_pad is None
                              else self.alignment_pad)
-            alignment.extend([alignment_pad] * (max_rowlen - len(alignment)))
+            align.extend([alignment_pad] * (max_rowlen - len(align)))
 
-        content = [[str(item) for item in row] for row in self.content]
+
 
         if self.compact: # Compact table
-            output = [header, (item.value(3) for item in alignment)]
+            output = [header, (item.value(3) for item in align)]
             for row in content:
                 row.extend([''] * (max_rowlen - len(row)))
                 output.append((str(item) for item in row))
@@ -518,17 +532,17 @@ class Table(IterableElement):
                     if len(cell) > max_widths[i]:
                         max_widths[i] = len(cell)
 
-            output = [_pad(header, max_widths, alignment)]
+            output = [_pad(header, max_widths, align)]
             # Alignments and paddings
             alignment_row: list[str] = [item.value(width) for item, width
-                                        in zip(alignment, max_widths)]
+                                        in zip(align, max_widths)]
 
             output.append((item for item in alignment_row))
             for row in content:
                 row.extend([''] * (max_rowlen - len(row)))
-                output.append(_pad(row, max_widths, alignment))
+                output.append(_pad(row, max_widths, align))
             return '\n'.join('| ' + ' | '.join(row) + ' |' for row in output)
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 # EXTENDED ELEMENTS
 @_dataclass(**_maybeslots)
 class Footnote(ContainerElement, InlineElement):
@@ -556,7 +570,7 @@ class Footnote(ContainerElement, InlineElement):
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f'[^{self._index}]'
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Math(InlineElement):
     '''Inline KaTeX math notation
@@ -577,7 +591,7 @@ class Math(InlineElement):
         elif self.flavour == GITLAB:
             return f'$`{self.text}`$'
         raise ValueError(f'Flavour {self.flavour} not recognised')
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class MathBlock(Element):
     '''KaTeX math notation in a block
@@ -598,20 +612,29 @@ class MathBlock(Element):
         elif self.flavour == GITLAB:
             return f'```math\n{self.text}\n```'
         raise ValueError(f'Flavour {self.flavour} not suppoted')
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
-class QuoteBlock(ContainerElement):
+class Quote(ContainerElement):
+    '''Block of text that gets emphasized. Can be
+
+    Parameters
+    ----------
+    content: Any
+        Content to be wrapped in a quote block
+    '''
     content: _Any
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return '> ' + str(self.content).replace('\n', '\n> ')
-#══════════════════════════════════════════════════════════════════════════════
+#─────────────────────────────────────────────────────────────────────────────
+QuoteBlock = Quote # some backwards compatibility
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class HRule(Element):
     '''Simple a horizontal line'''
     def __str__(self) -> str:
         return '---'
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Image(Element):
     '''
@@ -628,7 +651,8 @@ class Image(Element):
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f'![{self.alt_text}]({self.path})'
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
+# Emoji
 @_dataclass(**_maybeslots)
 class Emoji(InlineElement):
     """https://www.webfx.com/tools/emoji-cheat-sheet/"""
@@ -636,7 +660,8 @@ class Emoji(InlineElement):
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f':{self.code}:'
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
+# TOC
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class TOC(Element):
     '''Marker where table of contents will be placed.
@@ -647,7 +672,8 @@ class TOC(Element):
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return self._text
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
+# Document
 def _preprocess_document(content: _Iterable
                 ) -> tuple[list,
                            dict[int, list[TOC]],
@@ -683,7 +709,7 @@ def _preprocess_document(content: _Iterable
                     for old, new in zip(collectables, item._collect()):
                         old |= new
     return new_content, TOCs, top_level, headings, *collectables
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 def _process_footnotes(footnotes: dict[Footnote, None]) -> str:
     '''Makes footone list text from collected footnotes and updates
     their indices'''
@@ -691,7 +717,7 @@ def _process_footnotes(footnotes: dict[Footnote, None]) -> str:
         footnote._index = index
     return '\n'.join(f'[^{footnote._index}]: {footnote.content}'
                      for footnote in footnotes)
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 def _process_references(references: dict[Link, None]) -> str:
     '''Makes reference list text from collected link references and updates
     and their indices'''
@@ -704,7 +730,7 @@ def _process_references(references: dict[Link, None]) -> str:
             link._index = index
         reflines.append(f'[{index}]: {reftext}')
     return '\n'.join(reflines)
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 def _process_header(language: _Any, content: _Any) -> str:
     language = str(language).strip().lower()
     if language == 'yaml':
@@ -714,12 +740,12 @@ def _process_header(language: _Any, content: _Any) -> str:
     if language == 'json':
         return f';;;\n{content}\n;;;'
     return f'---{language}\n{content}\n---'
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 def _heading_ref_texts(text: str) -> tuple[str, str]:
     '''Generates visible link text and internal link target'''
     return (text.translate(''.maketrans('', '', '[]')),
             '#' + text.translate(''.maketrans(' ', '-', _punctuation)).lower())
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 def _process_TOC(TOCs: dict[int, list[TOC]],
                  headings: _Iterable[Heading],
                  top_level: int
@@ -743,7 +769,7 @@ def _process_TOC(TOCs: dict[int, list[TOC]],
         text = '\n'.join(TOCtexts[level])
         for toc in toclist:
             toc._text = text
-#══════════════════════════════════════════════════════════════════════════════
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Document(IterableElement):
     content: list[_Any] = _field(default_factory = list)

@@ -134,7 +134,7 @@ def make_examples(source: str) -> md.Document:
     doc += get_example('address', address)
 
     #%% quote block
-    quoteblock = md.QuoteBlock('Quote block supports\nmultiple lines')
+    quoteblock = md.Quote('Quote block supports\nmultiple lines')
 
     doc += get_example('quote block', quoteblock)
 
