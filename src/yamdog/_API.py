@@ -14,6 +14,7 @@ from enum import Enum as _Enum
 from functools import partial as _partial
 from string import punctuation as _punctuation
 from typing import Any as _Any
+from typing import Callable as _Callable
 from typing import Generator as _Generator
 from typing import Optional as _Optional
 from typing import Union as _Union
@@ -32,9 +33,9 @@ class Align(_Enum):
     # _EnumDict __setitem__ detect lambdas as descriptors,
     # because they have __get__ attribute,
     # so they need to wrapped with a functools.partial
-    LEFT = _partial(lambda width: ':'+ (width - 1) * '-')
-    CENTER = _partial(lambda width: ':'+ (width - 2) * '-' + ':')
-    RIGHT = _partial(lambda width: (width - 1) * '-' + ':')
+    LEFT = _partial(lambda width: f':{(width - 1) * "-"}')
+    CENTER = _partial(lambda width: f':{"-" * (width - 2)}:')
+    RIGHT = _partial(lambda width: f'{(width - 1) * "-"}:')
 
 LEFT, CENTER, RIGHT = Align
 #─────────────────────────────────────────────────────────────────────────────
@@ -73,6 +74,8 @@ class TextStyle(_Enum):
     HIGHLIGHT = '=='
 
 BOLD, ITALIC, STRIKETHROUGH, HIGHLIGHT = TextStyle
+#─────────────────────────────────────────────────────────────────────────────
+_dict_dict: _Callable[[], dict] = lambda: _defaultdict(dict)
 #═════════════════════════════════════════════════════════════════════════════
 _re_begin = _re.compile(r'^\s*\n\s*')
 _re_middle = _re.compile(r'\s*\n\s*')
@@ -82,7 +85,12 @@ def _sanitise_str(text: str):
 #═════════════════════════════════════════════════════════════════════════════
 def _is_collectable(obj) -> bool:
     return hasattr(obj, '_collect') and isinstance(obj, Element)
-#═════════════════════════════════════════════════════════════════════════════
+#─────────────────────────────────────────────────────────────────────────────
+def _update_collected(olds: tuple, news: tuple):
+    for old, new in zip(olds, news):
+        for key, value in new.items():
+            old[key].update(value)
+#─────────────────────────────────────────────────────────────────────────────
 def _collect_iter(items: _Iterable) -> tuple[dict, dict]:
     '''Doing ordered set union thing
 
@@ -96,11 +104,11 @@ def _collect_iter(items: _Iterable) -> tuple[dict, dict]:
     tuple[dict, dict]
         unique items
     '''
-    output: tuple[dict[Link, None], dict[Footnote, None]] = ({}, {})
+    output: tuple[_CollectedLinks,
+                  _CollectedFootnotes] = (_dict_dict(),  _dict_dict())
     for item in items:
         if _is_collectable(item):
-            for old, new in zip(output, item._collect()):
-                old |= new
+            _update_collected(output, item._collect())
     return output
 #═════════════════════════════════════════════════════════════════════════════
 # ELEMENTS BASE CLASSES
@@ -118,7 +126,8 @@ class ContainerElement(Element):
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
         return (self.content._collect() # type: ignore
-                if _is_collectable(self.content) else ({}, {})) # type: ignore
+                if _is_collectable(self.content) # type: ignore
+                else (_dict_dict(), _dict_dict()))
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class IterableElement(ContainerElement):
@@ -134,7 +143,6 @@ class InlineElement(Element):
     """A marker class to whether element can be treated as inline"""
     ...
 #═════════════════════════════════════════════════════════════════════════════
-# BASIC ELEMENTS
 #═════════════════════════════════════════════════════════════════════════════
 # Checkbox
 @_dataclass(validate = True, **_maybeslots) # type: ignore
@@ -175,7 +183,8 @@ class Code(InlineElement):
     content: _Any
     def __str__(self) -> str:
         return f'`{self.content}`'
-#═════════════════════════════════════════════════════════════════════════════
+#─────────────────────────────────────────────────────────────────────────────
+_re_tics = _re.compile(r'(?:`)+')
 @_dataclass(**_maybeslots)
 class CodeBlock(Element):
     '''Multiline monospace text. Nesting CodeBlocks is possible
@@ -189,15 +198,14 @@ class CodeBlock(Element):
     '''
     content: _Any
     language: _Any = ''
-    _tics: int = _field(init = False, default = 3)
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        text = str(self.content)
-        language = _sanitise_str(str(self.language))
-        if isinstance(self.content, CodeBlock):
-            # Calling str before
-            self._tics = self.content._tics + 1
-        return f'{"`" * self._tics}{language}\n{text}\n{"`" * self._tics}'
+        text = str(self.content) # Forces potential ` characters to be resolved
+        tics = ('`' * (n_tics + 1)
+                if ((tics := sorted(_re_tics.findall(text), reverse = True))
+                    and (n_tics := len(tics[0])) > 2)
+                else '```')
+        return f'{tics}{_sanitise_str(str(self.language))}\n{text}\n{tics}'
 #═════════════════════════════════════════════════════════════════════════════
 # Emoji
 @_dataclass(**_maybeslots)
@@ -225,9 +233,10 @@ class Footnote(ContainerElement, InlineElement):
 
         links, footnotes = (self.content._collect()
                             if _is_collectable(self.content)
-                            else ({}, {}))
-        own = {self: None}
-        own |= footnotes
+                            else (_dict_dict(), _dict_dict()))
+        own = _dict_dict()
+        own.update({self: {id(self): self}})
+        own.update(footnotes)
         return links, own
     #─────────────────────────────────────────────────────────────────────────
     def __hash__(self) -> int:
@@ -235,6 +244,8 @@ class Footnote(ContainerElement, InlineElement):
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f'[^{self._index}]'
+#─────────────────────────────────────────────────────────────────────────────
+_CollectedFootnotes = dict[Footnote, dict[int, Footnote]]
 #═════════════════════════════════════════════════════════════════════════════
 # Heading
 @_dataclass(validate = True, **_maybeslots) # type: ignore
@@ -317,14 +328,13 @@ class Link(InlineElement):
     _index: int = _field(init = False, default = 0)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self) -> tuple[dict, dict]:
-        return ({} if self.title is None else {self: None},
+        links = _dict_dict()
+        if self.title is not None:
+            links.update({(str(self.target), str(self.title)):
+                         {id(self): self}})
+        return (links,
                 self.content._collect()[1] if _is_collectable(self.content)
-                else {})
-    #─────────────────────────────────────────────────────────────────────────
-    def __hash__(self) -> int:
-        return (hash(str(self.target))
-                + hash(str(self.content))
-                + hash(str(self.title)))
+                else _dict_dict())
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         if self.content is None:
@@ -332,6 +342,8 @@ class Link(InlineElement):
         if self._index:
             return f'[{self.content}][{self._index}]'
         return f'[{self.content}]({self.target})'
+#─────────────────────────────────────────────────────────────────────────────
+_CollectedLinks = dict[tuple[str, str], dict[int, Link]]
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Listing(IterableElement):
@@ -549,11 +561,10 @@ class Table(IterableElement):
 
         return cls(header, content, align, compact, align_pad)
     #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> tuple[dict, dict]:
+    def _collect(self) -> tuple[_CollectedLinks, _CollectedFootnotes]:
         output = _collect_iter(self.header)
         for row in self.content:
-            for old, new in zip(output, _collect_iter(row)):
-                old |= new
+            _update_collected(output, _collect_iter(row))
         return output
     #─────────────────────────────────────────────────────────────────────────
     def append(self, row: _Collection) -> None:
@@ -734,16 +745,16 @@ def _preprocess_document(content: _Iterable
                            dict[int, list[TOC]],
                            int,
                            list[Heading],
-                           dict[Link, None],
-                           dict[Footnote, None]]:
+                           _CollectedLinks,
+                           _CollectedFootnotes]:
     '''Iterates through document tree and collects
         - TOCs
         - headers
         - references
         - footnotes
     and sanitises string objects'''
-    collectables: tuple[dict[Link, None],
-                        dict[Footnote, None]] = ({}, {})
+    collectables: tuple[_CollectedLinks,
+                        _CollectedFootnotes] = (_dict_dict(), _dict_dict())
     new_content: list[str] = []
     TOC_bottomlevel = 0
     TOCs: dict[int, list[TOC]] = _defaultdict(list)
@@ -764,8 +775,7 @@ def _preprocess_document(content: _Iterable
                     if item.level < top_level or not top_level:
                         top_level = item.level
                 if _is_collectable(item):
-                    for old, new in zip(collectables, item._collect()):
-                        old |= new
+                    _update_collected(collectables, item._collect())
     return (new_content,
             TOC_bottomlevel,
             TOCs,
@@ -773,26 +783,26 @@ def _preprocess_document(content: _Iterable
             headings,
             *collectables)
 #═════════════════════════════════════════════════════════════════════════════
-def _process_footnotes(footnotes: dict[Footnote, None]) -> str:
+def _process_footnotes(footnotes: _CollectedFootnotes) -> str:
     '''Makes footone list text from collected footnotes and updates
     their indices'''
-    for index, footnote in enumerate(footnotes, start = 1):
-        footnote._index = index
+    for index, footnote_dict in enumerate(footnotes.values(), start = 1):
+        # Adding same index to all footnotes with same text
+        for footnote in footnote_dict.values():
+            footnote._index = index
     return '\n'.join(f'[^{footnote._index}]: {footnote.content}'
                      for footnote in footnotes)
 #═════════════════════════════════════════════════════════════════════════════
-def _process_references(references: dict[Link, None]) -> str:
+def _process_references(references: _CollectedLinks) -> str:
     '''Makes reference list text from collected link references and updates
     and their indices'''
-    reftargets: dict[str, list[Link]] = _defaultdict(list)
-    for link in references: # matching links to references
-        reftargets[f'<{link.target}> "{link.title}"'].append(link)
-
     reflines = []
-    for index, (reftext, links) in enumerate(reftargets.items(), start = 1):
-        for link in links: # Adding indices to links and reftext
+    for index, ((target, title), links) in enumerate(references.items(),
+                                                        start = 1):
+        reflines.append(f'[{index}]: <{target}> "{title}"')
+        # Adding same index to all links with same text
+        for link in links.values():
             link._index = index
-        reflines.append(f'[{index}]: {reftext}')
     return '\n'.join(reflines)
 #═════════════════════════════════════════════════════════════════════════════
 def _process_header(language: _Any, content: _Any) -> str:

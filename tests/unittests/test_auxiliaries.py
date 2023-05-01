@@ -1,3 +1,5 @@
+from pprint import pprint
+
 import pytest
 import yamdog as md
 from yamdog import _API
@@ -19,9 +21,9 @@ def test_string_sanitisation(string, expected):
 #══════════════════════════════════════════════════════════════════════════════
 # _collect_iter
 def test_collect_iter():
-    link_collect1 = md.Link('link-collect1', 'link-collect1', 'link-collect1')
-    link_collect2 = md.Link('link-collect2', 'link-collect2', 'link-collect2')
-    link_collect3 = md.Link('link-collect3', 'link-collect3', 'link-collect3')
+    link_collect1 = md.Link('target', 'content', 'title')
+    link_collect2 = md.Link('target', 'content', 'title')
+    link_collect3 = md.Link('target3', 'content3', 'title3')
     footnote1 = md.Footnote('footnote1')
     footnote2 = md.Footnote('footnote2')
     output = _API._collect_iter([
@@ -36,11 +38,12 @@ def test_collect_iter():
         md.QuoteBlock(footnote1),
         md.Table([1,2], [['a', footnote2]]),
     ])
-    assert output == ({link_collect1: None,
-                       link_collect2: None,
-                       link_collect3: None},
-                      {footnote1: None,
-                       footnote2: None})
+    links, footnotes = output
+    assert dict(links) == {('target', 'title'): {id(link_collect1): link_collect1,
+                                       id(link_collect2): link_collect2},
+                       ('target3', 'title3'): {id(link_collect3): link_collect3}}
+    assert dict(footnotes) == {footnote1: {id(footnote1): footnote1},
+                               footnote2: {id(footnote2): footnote2}}
 #══════════════════════════════════════════════════════════════════════════════
 # Header
 @pytest.mark.parametrize("args,expected", [

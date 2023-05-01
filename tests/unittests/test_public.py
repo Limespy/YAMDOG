@@ -1,6 +1,7 @@
 '''Unittests for public interface of the package.
 Classes are sorted alphabetically and related functions'''
 import itertools
+from pprint import pprint
 
 import pytest
 import yamdog as md
@@ -30,12 +31,26 @@ class Test_CodeBlock:
     @pytest.mark.parametrize("args,expected", [
         (('',),             '```\n\n```'),
         (('',),             '```\n\n```'),
-        (('test','py'), '```py\ntest\n```'),
-        ((md.CodeBlock('test', 'py'), 'py'), ('````py\n'
-                                            '```py\n'
-                                            'test\n'
-                                            '```\n'
-                                            '````'))
+        (('a=1','py'),      '```py\na=1\n```'),
+        (('```','py'),      '````py\n```\n````'),
+        ((md.CodeBlock('a=1', 'py'), 'py'), ('````py\n'
+                                              '```py\n'
+                                              'a=1\n'
+                                              '```\n'
+                                              '````')),
+        ((md.CodeBlock('```', 'py'), 'py'), ('`````py\n'
+                                             '````py\n'
+                                             '```\n'
+                                             '````\n'
+                                             '`````')),
+        ((md.Paragraph(['```',
+                       md.CodeBlock('```', 'py')],
+                       '\n'), 'py'), ('`````py\n'
+                                                           '```\n'
+                                                           '````py\n'
+                                                           '```\n'
+                                                           '````\n'
+                                                           '`````'))
     ])
     def test_str(self, args, expected):
         assert str(md.CodeBlock(*args)) == expected
@@ -115,19 +130,26 @@ class Test_Document:
     #─────────────────────────────────────────────────────────────────────────
     def test_str_references(self):
         link0 = md.Link('no', 'no')
-        link1 = md.Link('url1', 'simple', 'title1')
-        link2 = md.Link('url2', 'simple', 'title2')
-        link3 = md.Link('url1', 'different text', 'title1')
-        doc = md.Document([link0, link1, link2, link3])
+        link1 = md.Link('url1', 'content', 'title1')
+        # Same text in two different objects
+        link2 = md.Link('url1', 'content', 'title1')
+        link3 = md.Link('url2', 'content', 'title2')
+        link4 = md.Link('url1', 'different text', 'title1')
+        doc = md.Document([link0, link1, link2, link3, link4])
         expected = [str(link0),
                     f'[{link1.content}][1]',
-                    f'[{link2.content}][2]',
-                    f'[{link3.content}][1]']
+                    f'[{link2.content}][1]',
+                    f'[{link3.content}][2]',
+                    f'[{link4.content}][1]']
         expected.append(f'[1]: <{link1.target}> "{link1.title}"\n'
-                        f'[2]: <{link2.target}> "{link2.title}"')
-        assert link1.target == link3.target
-        assert link1.title == link3.title
-        assert str(doc) == '\n\n'.join(expected)
+                        f'[2]: <{link3.target}> "{link3.title}"')
+        expected_str = '\n\n'.join(expected)
+        pprint(expected_str)
+        doc_str = str(doc)
+        pprint(doc_str)
+        assert link1.target == link4.target
+        assert link1.title == link4.title
+        assert doc_str == expected_str
     #─────────────────────────────────────────────────────────────────────────
     def test_a_reference_in_a_footnote(self):
         link = md.Link('target', 'content', 'title')
@@ -234,19 +256,6 @@ class Test_Link:
     #─────────────────────────────────────────────────────────────────────────
     def test_target_and_content(self):
         assert str(md.Link('target', 'content')) == '[content](target)'
-    #─────────────────────────────────────────────────────────────────────────
-    @pytest.mark.parametrize('args1,args2',
-                            (((1, 2), (1, 2)),
-                            ((1, 2), ('1', 2)),
-                            ((1, 2, 3), (1, 2, 3))))
-    def test_same_hash(self, args1, args2):
-        assert hash(md.Link(*args1)) == hash(md.Link(*args2))
-    #─────────────────────────────────────────────────────────────────────────
-    @pytest.mark.parametrize('args1,args2',
-                            (((1, 1), (1, 2)),
-                            ((1, 2, 1), (1, 2, 3))))
-    def test_different_hash(self, args1, args2):
-        assert hash(md.Link(*args1)) != hash(md.Link(*args2))
     #─────────────────────────────────────────────────────────────────────────
     def test_index_init_raises(self):
         with pytest.raises(TypeError):
