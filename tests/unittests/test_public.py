@@ -6,10 +6,6 @@ import pytest
 import yamdog as md
 from yamdog import _API
 #═════════════════════════════════════════════════════════════════════════════
-# Address
-def test_Address_str():
-    assert str(md.Address('test')) == '<test>'
-#═════════════════════════════════════════════════════════════════════════════
 class Test_Checkbox:
     @pytest.mark.parametrize("args,expected", [
         ((True, 'test'), '[x] test'),
@@ -119,9 +115,9 @@ class Test_Document:
     #─────────────────────────────────────────────────────────────────────────
     def test_str_references(self):
         link0 = md.Link('no', 'no')
-        link1 = md.Link('simple', 'url1', 'title1')
-        link2 = md.Link('simple', 'url2', 'title2')
-        link3 = md.Link('different text', 'url1', 'title1')
+        link1 = md.Link('url1', 'simple', 'title1')
+        link2 = md.Link('url2', 'simple', 'title2')
+        link3 = md.Link('url1', 'different text', 'title1')
         doc = md.Document([link0, link1, link2, link3])
         expected = [str(link0),
                     f'[{link1.content}][1]',
@@ -134,7 +130,7 @@ class Test_Document:
         assert str(doc) == '\n\n'.join(expected)
     #─────────────────────────────────────────────────────────────────────────
     def test_a_reference_in_a_footnote(self):
-        link = md.Link('content', 'target', 'title')
+        link = md.Link('target', 'content', 'title')
         footnote = md.Footnote(link)
         assert str(md.Document([footnote])) == ('[^1]\n'
                                                 '\n'
@@ -154,17 +150,17 @@ class Test_Document:
     #                                         '[1]: <target> "title"')
     #─────────────────────────────────────────────────────────────────────────
     def test_TOC(self):
-        headings = [md.Heading(i, f'h{i}') for i in range(1,6,1)]
+        headings = [md.Heading(f'h{i}', i) for i in range(1,6,1)]
         # creating example
         reftext, ref = _API._heading_ref_texts(headings[3].content) # level up to 4
 
-        listing = md.Listing(md.UNORDERED, [md.Link(reftext, ref)])
+        listing = md.Listing(md.UNORDERED, [md.Link(ref, reftext)])
         for heading in reversed(headings[:3]):
             reftext, ref = _API._heading_ref_texts(heading.content)
-            listing = md.Listing(md.UNORDERED, [(md.Link(reftext, ref), listing)])
+            listing = md.Listing(md.UNORDERED, [(md.Link(ref, reftext), listing)])
         # Testing duplicate headers
         reftext, ref = _API._heading_ref_texts(headings[0].content)
-        listing.append(md.Link(reftext, ref + '1')) # type: ignore
+        listing.append(md.Link(ref + '1', reftext)) # type: ignore
         headings.append(headings[0])
         assert str(md.Document([md.TOC()] + headings)).startswith(str(listing))
     #─────────────────────────────────────────────────────────────────────────
@@ -182,14 +178,14 @@ class Test_Document:
 #══════════════════════════════════════════════════════════════════════════════
 # Element
 @pytest.mark.parametrize('element1, element2',
-                         itertools.permutations((md.Heading(1, 'test'),
+                         itertools.permutations((md.Heading('test', 1),
                                                  md.Link('test', 'case'),
                                                  md.Quote('quote'),
                                                  md.Image('path'),
                                                  md.CodeBlock('code', 'python'),
                                                  md.HRule(),
                                                  md.MathBlock('a = b^2')), 2))
-def test_element_add(element1, element2):
+def test_Element_add(element1, element2):
     assert element1 + element2 == md.Document([element1, element2])
 #═════════════════════════════════════════════════════════════════════════════
 # Emoji
@@ -197,23 +193,28 @@ def test_Emoji_str():
     assert str(md.Emoji('test')) == ':test:'
 #═════════════════════════════════════════════════════════════════════════════
 class Test_Heading:
-    @pytest.mark.parametrize("args,expected", [
-        ((1, ''),                  '# '),
-        ((2, 'test'),              '## test'),
-        ((1,'test', False),        '# test'),
-        ((1,'test', True),         'test\n===='),
-        ((2,'test', True),         'test\n----'),
-        ((3,'test', True),         '### test'),
-        ((1,'test', False, True),  '# test'),
-        ((1,'test', False, False), '# test <!-- omit in toc -->'),
-        ((1,'test', True, False),  'test <!-- omit in toc -->\n====')
+    @pytest.mark.parametrize("args, expected", [
+        (('', 1),                   '# '),
+        (('test', 2),               '## test'),
+        (('test', 1, False),        '# test <!-- omit in toc -->'),
+        (('test', 1, True),         '# test'),
+        (('test', 1, True, True),   'test\n===='),
+        (('test', 2, True, True),   'test\n----'),
+        (('test', 3, True, True),   '### test'),
+        (('test', 1, True, False),  '# test'),
+        (('test', 1, False, False), '# test <!-- omit in toc -->'),
+        (('test', 1, False, True),  'test <!-- omit in toc -->\n====')
     ])
     def test_str(self, args, expected):
         assert str(md.Heading(*args)) == expected
     #─────────────────────────────────────────────────────────────────────────
-    def test_level_0_raises_valueerror(self):
+    def test_level_0_raises_ValueError(self):
         with pytest.raises(ValueError):
-            md.Heading(0, 'test')
+            md.Heading('test', 0)
+    #─────────────────────────────────────────────────────────────────────────
+    def test_level_7_raises_ValueError(self):
+        with pytest.raises(ValueError):
+            md.Heading('test', 7)
 #═════════════════════════════════════════════════════════════════════════════
 # HRule
 def test_hrule_str():
@@ -226,9 +227,14 @@ def test_hrule_str():
                                            ((2,1),   '![1](2)'),])
 def test_Image_str(args, expected):
     assert str(md.Image(*args)) == expected
-
 #═════════════════════════════════════════════════════════════════════════════
 class Test_Link:
+    def test_target_only(self):
+        assert str(md.Link('target')) == '<target>'
+    #─────────────────────────────────────────────────────────────────────────
+    def test_target_and_content(self):
+        assert str(md.Link('target', 'content')) == '[content](target)'
+    #─────────────────────────────────────────────────────────────────────────
     @pytest.mark.parametrize('args1,args2',
                             (((1, 2), (1, 2)),
                             ((1, 2), ('1', 2)),
@@ -385,8 +391,8 @@ class Test_Text:
         assert md.ITALIC in text.italicize().style
         assert md.ITALIC not in text.unitalicize().style
         assert not text.style
-        assert md.STRIKETHROUGH in text.strike().style
-        assert md.STRIKETHROUGH not in text.unstrike().style
+        assert md.STRIKETHROUGH in text.strikethrough().style
+        assert md.STRIKETHROUGH not in text.unstrikethrough().style
         assert not text.style
         assert md.HIGHLIGHT in text.highlight().style
         assert md.HIGHLIGHT not in text.unhighlight().style
@@ -414,8 +420,8 @@ class Test_Table:
         '4|5|6|7'),
     ])
     def test_str(self,args, expected_pretty, expected_compact):
-        assert str(md.Table(*args)) == expected_pretty.strip()
-        assert str(md.Table(*args, compact = True)) == expected_compact.strip() # type: ignore
+        assert str(md.Table(*args)) == expected_pretty
+        assert str(md.Table(*args, compact = True)) == expected_compact # type: ignore
     #─────────────────────────────────────────────────────────────────────────
     def test_alignment_fill(self):
         assert str(md.Table(['a', 'b'], [[1, 2]])) == ('| a   | b   |\n'
@@ -428,3 +434,12 @@ class Test_Table:
         assert table.content == [[1,2], [3,4]]
         with pytest.raises(TypeError):
             table.append(1) # type: ignore
+    #─────────────────────────────────────────────────────────────────────────
+    def test_from_dict(self):
+        dictionary = {'a': (1,2),
+                      'b': (1,2,3)}
+        assert str(md.Table.from_dict(dictionary)) == ('| a   | b   |\n' # type: ignore
+                                                       '| :-- | :-- |\n'
+                                                       '| 1   | 1   |\n'
+                                                       '| 2   | 2   |\n'
+                                                       '|     | 3   |')
