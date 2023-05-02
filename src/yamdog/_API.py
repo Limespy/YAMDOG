@@ -75,41 +75,59 @@ class TextStyle(_Enum):
 
 BOLD, ITALIC, STRIKETHROUGH, HIGHLIGHT = TextStyle
 #─────────────────────────────────────────────────────────────────────────────
-_dict_dict: _Callable[[], dict] = lambda: _defaultdict(dict)
+class _ObjectDict(_defaultdict):
+    def __init__(self, initial: _Optional[dict[_Any, dict[int, _Any]]] = None
+                 ) -> None:
+        super().__init__(dict)
+        if initial is not None:
+            self |= initial
+    #─────────────────────────────────────────────────────────────────────────
+    def __ior__(self, other: dict[_Any, dict[int, _Any]]): # type: ignore
+        for key, subdict in other.items():
+            self[key].update(subdict)
+        return self
+_Collected = tuple[_ObjectDict, _ObjectDict]
+_empty_collected: _Callable[[], _Collected] = lambda: (_ObjectDict(),
+                                                       _ObjectDict())
 #═════════════════════════════════════════════════════════════════════════════
 _re_begin = _re.compile(r'^\s*\n\s*')
 _re_middle = _re.compile(r'\s*\n\s*')
 _re_end = _re.compile(r'\s*\n\s*$')
 def _sanitise_str(text: str):
     return _re_middle.sub(' ', _re_end.sub('', _re_begin.sub('', text)))
-#═════════════════════════════════════════════════════════════════════════════
-def _is_collectable(obj) -> bool:
-    return hasattr(obj, '_collect') and isinstance(obj, Element)
 #─────────────────────────────────────────────────────────────────────────────
-def _update_collected(olds: tuple, news: tuple):
-    for old, new in zip(olds, news):
-        for key, value in new.items():
-            old[key].update(value)
+def _maybe_collect(item: _Any,
+                   visited: set[int],
+                   collected: _Collected
+                   ) -> tuple[set[int], _Collected]:
+    if (item_id := id(item)) not in visited:
+        visited.add(item_id)
+        if hasattr(item, '_collect') and isinstance(item, Element):
+            visited, new_collected = item._collect(visited) # type: ignore
+            for old, new in zip(collected, new_collected):
+                old |= new
+    return visited, collected
 #─────────────────────────────────────────────────────────────────────────────
-def _collect_iter(items: _Iterable) -> tuple[dict, dict]:
+def _collect_iter(items: _Iterable, visited: set[int]
+                  ) -> tuple[set[int], _Collected]:
     '''Doing ordered set union thing
 
     Parameters
     ----------
     items : Iterable
-        items to be checked
+        Items to be checked
+    visited: set[int]
+        Objectes already visited. To prevent infinite recursion
 
     Returns
     -------
     tuple[dict, dict]
         unique items
     '''
-    output: tuple[_CollectedLinks,
-                  _CollectedFootnotes] = (_dict_dict(),  _dict_dict())
+    collected: _Collected = _empty_collected()
     for item in items:
-        if _is_collectable(item):
-            _update_collected(output, item._collect())
-    return output
+        visited, collected = _maybe_collect(item, visited, collected)
+    return visited, collected
 #═════════════════════════════════════════════════════════════════════════════
 # ELEMENTS BASE CLASSES
 @_dataclass(**_maybeslots)
@@ -124,16 +142,14 @@ class ContainerElement(Element):
     def __getattr__(self, attr: str) -> _Any:
         return getattr(self.content, attr)
     #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> tuple[dict, dict]:
-        return (self.content._collect() # type: ignore
-                if _is_collectable(self.content) # type: ignore
-                else (_dict_dict(), _dict_dict()))
+    def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
+        return _maybe_collect(self.content, visited, _empty_collected())
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class IterableElement(ContainerElement):
     #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> tuple[dict, dict]:
-        return _collect_iter(self.content)   # type: ignore
+    def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
+        return _collect_iter(self.content, visited)   # type: ignore
     #─────────────────────────────────────────────────────────────────────────
     def __iter__(self):
         return iter(self.content)   # type: ignore
@@ -229,18 +245,9 @@ class Footnote(ContainerElement, InlineElement):
     content: _Any
     _index: int = _field(init = False, default = 0)
     #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> tuple[dict, dict]:
-
-        links, footnotes = (self.content._collect()
-                            if _is_collectable(self.content)
-                            else (_dict_dict(), _dict_dict()))
-        own = _dict_dict()
-        own.update({self: {id(self): self}})
-        own.update(footnotes)
-        return links, own
-    #─────────────────────────────────────────────────────────────────────────
-    def __hash__(self) -> int:
-        return hash(str(self.content))
+    def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
+        footnote = _ObjectDict({str(self.content): {id(self): self}})
+        return _maybe_collect(self.content, visited, (_ObjectDict(), footnote))
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f'[^{self._index}]'
@@ -327,14 +334,11 @@ class Link(InlineElement):
     title: _Any = None
     _index: int = _field(init = False, default = 0)
     #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> tuple[dict, dict]:
-        links = _dict_dict()
-        if self.title is not None:
-            links.update({(str(self.target), str(self.title)):
-                         {id(self): self}})
-        return (links,
-                self.content._collect()[1] if _is_collectable(self.content)
-                else _dict_dict())
+    def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
+        link = (_ObjectDict() if self.title is None
+                else _ObjectDict({(str(self.target), str(self.title)):
+                                  {id(self): self}}))
+        return _maybe_collect(self.content, visited, (link, _ObjectDict()))
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         if self.content is None:
@@ -407,7 +411,7 @@ class Math(InlineElement):
     def __str__(self) -> str:
         if self.flavour == GITHUB:
             return f'${self.text}$'
-        elif self.flavour == GITLAB:
+        if self.flavour == GITLAB:
             return f'$`{self.text}`$'
         raise ValueError(f'Flavour {self.flavour} not recognised')
 #═════════════════════════════════════════════════════════════════════════════
@@ -428,7 +432,7 @@ class MathBlock(Element):
     def __str__(self) -> str:
         if self.flavour == GITHUB:
             return f'$$\n{self.text}\n$$'
-        elif self.flavour == GITLAB:
+        if self.flavour == GITLAB:
             return f'```math\n{self.text}\n```'
         raise ValueError(f'Flavour {self.flavour} not suppoted')
 #═════════════════════════════════════════════════════════════════════════════
@@ -455,11 +459,11 @@ class Paragraph(IterableElement):
         if isinstance(other, InlineElement):
             self.content.append(other)
             return self
-        elif isinstance(other, Paragraph):
+        if isinstance(other, Paragraph):
             self.content += other.content
             return self
-        else:
-            raise TypeError(f"+= has not been implemented for Paragraph with object {repr(other)} type '{type(other).__name__}'")
+        raise TypeError(f"+= has not been implemented for Paragraph with object"
+                        f" {repr(other)} type '{type(other).__name__}'")
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Quote(ContainerElement):
@@ -561,11 +565,13 @@ class Table(IterableElement):
 
         return cls(header, content, align, compact, align_pad)
     #─────────────────────────────────────────────────────────────────────────
-    def _collect(self) -> tuple[_CollectedLinks, _CollectedFootnotes]:
-        output = _collect_iter(self.header)
+    def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
+        visited, collected = _collect_iter(self.header, visited)
         for row in self.content:
-            _update_collected(output, _collect_iter(row))
-        return output
+            visited, collected = _collect_iter(row, visited)
+            for old, new in zip(collected, collected):
+                old |= new
+        return visited, collected
     #─────────────────────────────────────────────────────────────────────────
     def append(self, row: _Collection) -> None:
         '''Appends to content, but checks whe
@@ -753,8 +759,8 @@ def _preprocess_document(content: _Iterable
         - references
         - footnotes
     and sanitises string objects'''
-    collectables: tuple[_CollectedLinks,
-                        _CollectedFootnotes] = (_dict_dict(), _dict_dict())
+    collected: _Collected = (_ObjectDict(), _ObjectDict())
+    visited: set[int] = set()
     new_content: list[str] = []
     TOC_bottomlevel = 0
     TOCs: dict[int, list[TOC]] = _defaultdict(list)
@@ -774,24 +780,24 @@ def _preprocess_document(content: _Iterable
                     headings.append(item)
                     if item.level < top_level or not top_level:
                         top_level = item.level
-                if _is_collectable(item):
-                    _update_collected(collectables, item._collect())
+                visited, collected = _maybe_collect(item, visited, collected)
     return (new_content,
             TOC_bottomlevel,
             TOCs,
             top_level,
             headings,
-            *collectables)
+            *collected)
 #═════════════════════════════════════════════════════════════════════════════
 def _process_footnotes(footnotes: _CollectedFootnotes) -> str:
     '''Makes footone list text from collected footnotes and updates
     their indices'''
+    info = []
     for index, footnote_dict in enumerate(footnotes.values(), start = 1):
         # Adding same index to all footnotes with same text
         for footnote in footnote_dict.values():
             footnote._index = index
-    return '\n'.join(f'[^{footnote._index}]: {footnote.content}'
-                     for footnote in footnotes)
+        info.append((index, footnote.content))
+    return '\n'.join(f'[^{index}]: {content}' for index, content in info)
 #═════════════════════════════════════════════════════════════════════════════
 def _process_references(references: _CollectedLinks) -> str:
     '''Makes reference list text from collected link references and updates

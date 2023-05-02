@@ -14,7 +14,7 @@ def make_examples(source: str) -> md.Document:
         examples[name.strip()] = md.CodeBlock(code, 'python')
 
     def get_example(title: str, element: md.Element) -> md.Document:
-        return md.Document([md.Heading(4, title.capitalize()),
+        return md.Document([md.Heading(title.capitalize(), 4),
                             md.Text('Python source', {md.ITALIC}),
                             examples[title],
                             md.Text('Markdown source', {md.ITALIC}),
@@ -25,7 +25,7 @@ def make_examples(source: str) -> md.Document:
 
     # Starting the actual doc
     doc = md.Document([
-        md.Heading(3, 'Making elements'),
+        md.Heading('Making elements', 3),
 
     ])
 
@@ -39,7 +39,7 @@ def make_examples(source: str) -> md.Document:
     # document +=
 
     #%% heading
-    heading = md.Heading(4, 'Example heading')
+    heading = md.Heading('Example heading', 4)
 
     doc += get_example('heading', heading)
 
@@ -129,7 +129,7 @@ def make_examples(source: str) -> md.Document:
     # image = md.Image()
 
     #%% address
-    address = md.Address('https://www.markdownguide.org')
+    address = md.Link('https://www.markdownguide.org')
 
     doc += get_example('address', address)
 
@@ -138,7 +138,7 @@ def make_examples(source: str) -> md.Document:
 
     doc += get_example('quote block', quoteblock)
 
-    doc += md.Heading(3, 'Combining elements into a document')
+    doc += md.Heading('Combining elements into a document', 3)
 
     #%% calling document
     document = md.Document([heading, link, paragraph, listing])
@@ -179,22 +179,22 @@ def make_examples(source: str) -> md.Document:
 
 def make_quick_start_guide(name, pypiname, source):
     doc = md.Document([
-        md.Heading(1, 'Quick start guide'),
+        md.Heading('Quick start guide', 1),
         "Here's how you can start automatically generating Markdown documents",
-        md.Heading(2, 'The first steps'),
+        md.Heading('The first steps', 2),
         '',
-        md.Heading(3, 'Install'),
+        md.Heading('Install', 3),
         f'''Install {name} with pip.
         {name} uses only Python standard library so it has no additional dependencies.''',
         md.CodeBlock(f'pip install {pypiname}'),
-        md.Heading(3, 'Import'),
+        md.Heading('Import', 3),
         f'''Import name is the same as install name, {pypiname}.''',
         md.CodeBlock(f'import {pypiname}', 'python'),
         md.Paragraph(['Since the package is accessed often, I use abbreviation',
                       md.Code('md'),
                       ' for MarkDown. The abbreviation is used throughout this document.']),
         md.CodeBlock(f'import {pypiname} as md', 'python'),
-        md.Heading(2, 'Using the package'),
+        md.Heading('Using the package', 2),
         f'There are two main things to building a Markdown document using {name}',
         md.Listing(md.ORDERED, ['Making elements',
                                'Combining elements into a document']),
@@ -211,7 +211,7 @@ def make_quick_start_guide(name, pypiname, source):
 
 
 def make_changelog():
-    doc = md.Document([md.Heading(1, 'Changelog')])
+    doc = md.Document([md.Heading('Changelog', 1)])
 
     changelog = (('0.4.0', '2023-01-23', ['Much better type validation',
                                           'Some comparisons']),
@@ -220,7 +220,7 @@ def make_changelog():
                  )
 
     for version, date, changes in changelog:
-        doc += md.Heading(2, f'{version} {date}', in_TOC = False)
+        doc += md.Heading(f'{version} {date}', 2, in_TOC = False)
         doc += md.Listing(md.UNORDERED, changes)
 
     return doc
@@ -233,13 +233,13 @@ def make_further_reading():
                                   'https://www.markdownguide.org/basic-syntax/',
                                    '')
 
-    doc = md.Document([md.Heading(1, 'Further reading')])
+    doc = md.Document([md.Heading('Further reading', 1)])
     doc += md.Listing(md.UNORDERED, [basic_syntax_link, extended_syntax_link])
     return doc
 
 def make_annexes(source):
-    doc = md.Document([md.Heading(1, 'Annexes')])
-    doc += md.Heading(2, 'Annex 1: README Python source')
+    doc = md.Document([md.Heading('Annexes', 1)])
+    doc += md.Heading('Annex 1: README Python source', 2)
     doc += '''And here the full source code that wrote this README.
             This can serve as a more advanced example of what this is
             capable of.'''
@@ -263,13 +263,13 @@ def make_readme(name, pypiname, source):
 
     # Starting the document
     doc = md.Document([
-        md.Heading(1, f'Overview of {name}', in_TOC = False),
+        md.Heading(f'Overview of {name}', 1, in_TOC = False),
         md.Paragraph(pypi_badges, '\n'),
         'Yet Another Markdown Only Generator',
-        md.Heading(2, f'What is {name}?', in_TOC = False),
+        md.Heading(f'What is {name}?', 2, in_TOC = False),
         f'''{name} is toolkit for creating Markdown text using Python.
         Markdown is a light and relatively simple markup language.''',
-        md.Heading(3, 'Table of Content', in_TOC = False),
+        md.Heading('Table of Content', 3, in_TOC = False),
         md.TOC()
         ])
     doc += make_quick_start_guide(name, pypiname, source)

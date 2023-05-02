@@ -124,7 +124,14 @@ class Test_Document:
                                                        '[^1]: [^2]\n'
                                                        '[^2]: footnote')
     #─────────────────────────────────────────────────────────────────────────
-    def test_footnote_index_init_raises(self):
+    def test_self_referencing_footnote(self):
+        footnote = md.Footnote('dummy')
+        footnote.content = md.Paragraph(['See ', footnote])
+        assert str(md.Document([footnote])) == ('[^1]\n'
+                                                '\n'
+                                                '[^1]: See [^1]')
+    #─────────────────────────────────────────────────────────────────────────
+    def test_footnote_index_init_raises_TypeError(self):
         with pytest.raises(TypeError):
             md.Footnote('test', 1) # type: ignore
     #─────────────────────────────────────────────────────────────────────────

@@ -1,9 +1,9 @@
 # Overview of YAMDOG <!-- omit in toc -->
 
-[![PyPI Package latest release](https://img.shields.io/pypi/v/yamdog.svg)][1]
-[![PyPI Wheel](https://img.shields.io/pypi/wheel/yamdog.svg)][1]
-[![Supported versions](https://img.shields.io/pypi/pyversions/yamdog.svg)][1]
-[![Supported implementations](https://img.shields.io/pypi/implementation/yamdog.svg)][1]
+[https://pypi.org/project/yamdog][1]
+[https://pypi.org/project/yamdog][2]
+[https://pypi.org/project/yamdog][3]
+[https://pypi.org/project/yamdog][4]
 
 Yet Another Markdown Only Generator
 
@@ -100,7 +100,7 @@ document = md.Document()
 *Python source*
 
 ```python
-heading = md.Heading(4, 'Example heading')
+heading = md.Heading('Example heading', 4)
 ```
 
 *Markdown source*
@@ -123,7 +123,7 @@ heading = md.Heading(4, 'Example heading')
 
 ==highlighted text==
 
-~~**==*All styles combined*==**~~
+==***~~All styles combined~~***==
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})
@@ -297,12 +297,12 @@ link = md.Link('Link to Markdown Guide', 'https://www.markdownguide.org')
 *Markdown source*
 
 ```markdown
-[Link to Markdown Guide](https://www.markdownguide.org)
+[https://www.markdownguide.org](Link to Markdown Guide)
 ```
 
 *Rendered result*
 
-[Link to Markdown Guide](https://www.markdownguide.org)
+[https://www.markdownguide.org](Link to Markdown Guide)
 
 ---
 
@@ -360,7 +360,7 @@ code = md.Code('python != markdown')
 *Python source*
 
 ```python
-address = md.Address('https://www.markdownguide.org')
+address = md.Link('https://www.markdownguide.org')
 ```
 
 *Markdown source*
@@ -380,7 +380,7 @@ address = md.Address('https://www.markdownguide.org')
 *Python source*
 
 ```python
-quoteblock = md.QuoteBlock('Quote block supports\nmultiple lines')
+quoteblock = md.Quote('Quote block supports\nmultiple lines')
 ```
 
 *Markdown source*
@@ -434,7 +434,7 @@ document = document1 + document2
 ```markdown
 #### Example heading
 
-[Link to Markdown Guide](https://www.markdownguide.org)
+[https://www.markdownguide.org](Link to Markdown Guide)
 
 Example paragraph containing **bolded text**
 
@@ -451,7 +451,7 @@ Example paragraph containing **bolded text**
 
 #### Example heading
 
-[Link to Markdown Guide](https://www.markdownguide.org)
+[https://www.markdownguide.org](Link to Markdown Guide)
 
 Example paragraph containing **bolded text**
 
@@ -477,8 +477,8 @@ Example paragraph containing **bolded text**
 
 # Further reading
 
-- [basic syntax][2]
-- [extended syntax][2]
+- [https://www.markdownguide.org/basic-syntax/][5]
+- [https://www.markdownguide.org/basic-syntax/][6]
 
 ---
 
@@ -488,7 +488,7 @@ Example paragraph containing **bolded text**
 
 And here the full source code that wrote this README. This can serve as a more advanced example of what this is capable of.
 
-[The python file can also be found here](https://github.com/Limespy/YAMDOG/blob/main/readme.py)
+[https://github.com/Limespy/YAMDOG/blob/main/readme.py](The python file can also be found here)
 
 ```python
 import pathlib
@@ -507,7 +507,7 @@ def make_examples(source: str) -> md.Document:
         examples[name.strip()] = md.CodeBlock(code, 'python')
 
     def get_example(title: str, element: md.Element) -> md.Document:
-        return md.Document([md.Heading(4, title.capitalize()),
+        return md.Document([md.Heading(title.capitalize(), 4),
                             md.Text('Python source', {md.ITALIC}),
                             examples[title],
                             md.Text('Markdown source', {md.ITALIC}),
@@ -518,7 +518,7 @@ def make_examples(source: str) -> md.Document:
 
     # Starting the actual doc
     doc = md.Document([
-        md.Heading(3, 'Making elements'),
+        md.Heading('Making elements', 3),
 
     ])
 
@@ -532,7 +532,7 @@ def make_examples(source: str) -> md.Document:
     # document +=
 
     #%% heading
-    heading = md.Heading(4, 'Example heading')
+    heading = md.Heading('Example heading', 4)
 
     doc += get_example('heading', heading)
 
@@ -622,16 +622,16 @@ def make_examples(source: str) -> md.Document:
     # image = md.Image()
 
     #%% address
-    address = md.Address('https://www.markdownguide.org')
+    address = md.Link('https://www.markdownguide.org')
 
     doc += get_example('address', address)
 
     #%% quote block
-    quoteblock = md.QuoteBlock('Quote block supports\nmultiple lines')
+    quoteblock = md.Quote('Quote block supports\nmultiple lines')
 
     doc += get_example('quote block', quoteblock)
 
-    doc += md.Heading(3, 'Combining elements into a document')
+    doc += md.Heading('Combining elements into a document', 3)
 
     #%% calling document
     document = md.Document([heading, link, paragraph, listing])
@@ -672,22 +672,22 @@ def make_examples(source: str) -> md.Document:
 
 def make_quick_start_guide(name, pypiname, source):
     doc = md.Document([
-        md.Heading(1, 'Quick start guide'),
+        md.Heading('Quick start guide', 1),
         "Here's how you can start automatically generating Markdown documents",
-        md.Heading(2, 'The first steps'),
+        md.Heading('The first steps', 2),
         '',
-        md.Heading(3, 'Install'),
+        md.Heading('Install', 3),
         f'''Install {name} with pip.
         {name} uses only Python standard library so it has no additional dependencies.''',
         md.CodeBlock(f'pip install {pypiname}'),
-        md.Heading(3, 'Import'),
+        md.Heading('Import', 3),
         f'''Import name is the same as install name, {pypiname}.''',
         md.CodeBlock(f'import {pypiname}', 'python'),
         md.Paragraph(['Since the package is accessed often, I use abbreviation',
                       md.Code('md'),
                       ' for MarkDown. The abbreviation is used throughout this document.']),
         md.CodeBlock(f'import {pypiname} as md', 'python'),
-        md.Heading(2, 'Using the package'),
+        md.Heading('Using the package', 2),
         f'There are two main things to building a Markdown document using {name}',
         md.Listing(md.ORDERED, ['Making elements',
                                'Combining elements into a document']),
@@ -704,7 +704,7 @@ def make_quick_start_guide(name, pypiname, source):
 
 
 def make_changelog():
-    doc = md.Document([md.Heading(1, 'Changelog')])
+    doc = md.Document([md.Heading('Changelog', 1)])
 
     changelog = (('0.4.0', '2023-01-23', ['Much better type validation',
                                           'Some comparisons']),
@@ -713,7 +713,7 @@ def make_changelog():
                  )
 
     for version, date, changes in changelog:
-        doc += md.Heading(2, f'{version} {date}', in_TOC = False)
+        doc += md.Heading(f'{version} {date}', 2, in_TOC = False)
         doc += md.Listing(md.UNORDERED, changes)
 
     return doc
@@ -726,13 +726,13 @@ def make_further_reading():
                                   'https://www.markdownguide.org/basic-syntax/',
                                    '')
 
-    doc = md.Document([md.Heading(1, 'Further reading')])
+    doc = md.Document([md.Heading('Further reading', 1)])
     doc += md.Listing(md.UNORDERED, [basic_syntax_link, extended_syntax_link])
     return doc
 
 def make_annexes(source):
-    doc = md.Document([md.Heading(1, 'Annexes')])
-    doc += md.Heading(2, 'Annex 1: README Python source')
+    doc = md.Document([md.Heading('Annexes', 1)])
+    doc += md.Heading('Annex 1: README Python source', 2)
     doc += '''And here the full source code that wrote this README.
             This can serve as a more advanced example of what this is
             capable of.'''
@@ -756,13 +756,13 @@ def make_readme(name, pypiname, source):
 
     # Starting the document
     doc = md.Document([
-        md.Heading(1, f'Overview of {name}', in_TOC = False),
+        md.Heading(f'Overview of {name}', 1, in_TOC = False),
         md.Paragraph(pypi_badges, '\n'),
         'Yet Another Markdown Only Generator',
-        md.Heading(2, f'What is {name}?', in_TOC = False),
+        md.Heading(f'What is {name}?', 2, in_TOC = False),
         f'''{name} is toolkit for creating Markdown text using Python.
         Markdown is a light and relatively simple markup language.''',
-        md.Heading(3, 'Table of Content', in_TOC = False),
+        md.Heading('Table of Content', 3, in_TOC = False),
         md.TOC()
         ])
     doc += make_quick_start_guide(name, pypiname, source)
@@ -788,5 +788,9 @@ if __name__ == '__main__':
 
 ```
 
-[1]: <https://pypi.org/project/yamdog> ""
-[2]: <https://www.markdownguide.org/basic-syntax/> ""
+[1]: <![PyPI Package latest release](https://img.shields.io/pypi/v/yamdog.svg)> ""
+[2]: <![PyPI Wheel](https://img.shields.io/pypi/wheel/yamdog.svg)> ""
+[3]: <![Supported versions](https://img.shields.io/pypi/pyversions/yamdog.svg)> ""
+[4]: <![Supported implementations](https://img.shields.io/pypi/implementation/yamdog.svg)> ""
+[5]: <basic syntax> ""
+[6]: <extended syntax> ""

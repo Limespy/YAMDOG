@@ -19,31 +19,43 @@ def test_INDENT_is_4_spaces():
 def test_string_sanitisation(string, expected):
     assert _API._sanitise_str(string) == expected
 #══════════════════════════════════════════════════════════════════════════════
-# _collect_iter
-def test_collect_iter():
-    link_collect1 = md.Link('target', 'content', 'title')
-    link_collect2 = md.Link('target', 'content', 'title')
-    link_collect3 = md.Link('target3', 'content3', 'title3')
-    footnote1 = md.Footnote('footnote1')
-    footnote2 = md.Footnote('footnote2')
-    output = _API._collect_iter([
-        'test-no-collect',
-        md.Text('test-no-collect1', {md.BOLD}),
-        md.Text(link_collect3, {md.ITALIC}),
-        md.Link('test-no-collect', 'test-no-collect'),
-        link_collect1,
-        md.Paragraph([link_collect2,
-                      md.Text('test-no-collect2', {md.BOLD}),
-                      link_collect1]),
-        md.QuoteBlock(footnote1),
-        md.Table([1,2], [['a', footnote2]]),
-    ])
-    links, footnotes = output
-    assert dict(links) == {('target', 'title'): {id(link_collect1): link_collect1,
-                                       id(link_collect2): link_collect2},
-                       ('target3', 'title3'): {id(link_collect3): link_collect3}}
-    assert dict(footnotes) == {footnote1: {id(footnote1): footnote1},
-                               footnote2: {id(footnote2): footnote2}}
+class Test_collect_iter:
+    def test_collect_iter_single(self):
+        ref = md.Link('target', 'content', 'title')
+        footnote = md.Footnote('footnote')
+        visited, output = _API._collect_iter([ref, footnote], set())
+        links, footnotes = output
+        assert dict(links) == {('target', 'title'): {id(ref): ref}}
+        assert dict(footnotes) == {str(footnote.content): {id(footnote): footnote}}
+    #─────────────────────────────────────────────────────────────────────────
+    def test_collect_iter_multiple(self):
+        ref1 = md.Link('target', 'content', 'title')
+        ref2 = md.Link('target', 'content', 'title')
+        ref3 = md.Link('target3', 'content3', 'title3')
+        footnote1 = md.Footnote('footnote1')
+        footnote2 = md.Footnote('footnote2')
+        visited, output = _API._collect_iter([
+            'test-no-collect',
+            md.Text('test-no-collect1', {md.BOLD}),
+            md.Text(ref3, {md.ITALIC}),
+            md.Link('test-no-collect', 'test-no-collect'),
+            ref1,
+            md.Paragraph([ref2,
+                        md.Text('test-no-collect2', {md.BOLD}),
+                        ref1]),
+            md.QuoteBlock(footnote1),
+            md.Table([1,2], [['a', footnote2]]),
+        ], set())
+        links, footnotes = output
+        expected_ln = {('target', 'title'): {id(ref1): ref1,
+                                            id(ref2): ref2},
+                    ('target3', 'title3'): {id(ref3): ref3}}
+        print(dict(links))
+        print(expected_ln)
+        assert dict(links) == expected_ln
+        expected_fn = {str(footnote1.content): {id(footnote1): footnote1},
+                    str(footnote2.content): {id(footnote2): footnote2}}
+        assert dict(footnotes) == expected_fn
 #══════════════════════════════════════════════════════════════════════════════
 # Header
 @pytest.mark.parametrize("args,expected", [
