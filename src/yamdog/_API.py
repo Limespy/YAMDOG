@@ -96,10 +96,10 @@ _re_end = _re.compile(r'\s*\n\s*$')
 def _sanitise_str(text: str):
     return _re_middle.sub(' ', _re_end.sub('', _re_begin.sub('', text)))
 #─────────────────────────────────────────────────────────────────────────────
-def _maybe_collect(item: _Any,
-                   visited: set[int],
-                   collected: _Collected
-                   ) -> tuple[set[int], _Collected]:
+def _visit(item: _Any,
+           visited: set[int],
+           collected: _Collected
+           ) -> tuple[set[int], _Collected]:
     if (item_id := id(item)) not in visited:
         visited.add(item_id)
         if hasattr(item, '_collect') and isinstance(item, Element):
@@ -126,7 +126,7 @@ def _collect_iter(items: _Iterable, visited: set[int]
     '''
     collected: _Collected = _empty_collected()
     for item in items:
-        visited, collected = _maybe_collect(item, visited, collected)
+        visited, collected = _visit(item, visited, collected)
     return visited, collected
 #═════════════════════════════════════════════════════════════════════════════
 # ELEMENTS BASE CLASSES
@@ -143,7 +143,7 @@ class ContainerElement(Element):
         return getattr(self.content, attr)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
-        return _maybe_collect(self.content, visited, _empty_collected())
+        return _visit(self.content, visited, _empty_collected())
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class IterableElement(ContainerElement):
@@ -247,7 +247,7 @@ class Footnote(ContainerElement, InlineElement):
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
         footnote = _ObjectDict({str(self.content): {id(self): self}})
-        return _maybe_collect(self.content, visited, (_ObjectDict(), footnote))
+        return _visit(self.content, visited, (_ObjectDict(), footnote))
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f'[^{self._index}]'
@@ -338,7 +338,7 @@ class Link(InlineElement):
         link = (_ObjectDict() if self.title is None
                 else _ObjectDict({(str(self.target), str(self.title)):
                                   {id(self): self}}))
-        return _maybe_collect(self.content, visited, (link, _ObjectDict()))
+        return _visit(self.content, visited, (link, _ObjectDict()))
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         if self.content is None:
@@ -568,8 +568,8 @@ class Table(IterableElement):
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
         visited, collected = _collect_iter(self.header, visited)
         for row in self.content:
-            visited, collected = _collect_iter(row, visited)
-            for old, new in zip(collected, collected):
+            visited, new_collected = _collect_iter(row, visited)
+            for old, new in zip(collected, new_collected):
                 old |= new
         return visited, collected
     #─────────────────────────────────────────────────────────────────────────
@@ -780,7 +780,7 @@ def _preprocess_document(content: _Iterable
                     headings.append(item)
                     if item.level < top_level or not top_level:
                         top_level = item.level
-                visited, collected = _maybe_collect(item, visited, collected)
+                visited, collected = _visit(item, visited, collected)
     return (new_content,
             TOC_bottomlevel,
             TOCs,
