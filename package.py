@@ -7,9 +7,9 @@ import sys
 import tomllib
 
 import tomli_w
+from build import __main__ as build
 
 import readme
-from build import __main__ as build
 
 if '--print' in sys.argv:
     import pprint
@@ -69,16 +69,6 @@ def header(text: str, linechar = '─', endchar = '┐', headerwidth  =  60):
     lpad = linechar*l_len
     rpad = f'{(headerwidth - l_len - textlen - 3)*linechar}'
     return f'{lpad} {GREEN}{text}{RESET} {rpad}{endchar}'
-#───────────────────────────────────────────────────────────────────────
-# For classifiers
-def c(*args):
-    return ' :: '.join(args)
-#───────────────────────────────────────────────────────────────────────
-def cset(key, *values):
-    if isinstance(key, str):
-        key = (key, )
-    return [c(*key, *value) if isinstance(value, tuple) else c(*key, value)
-            for value in values]
 #%%═════════════════════════════════════════════════════════════════════
 # BUILD INFO
 
@@ -124,12 +114,6 @@ long_description = PATH_README.read_text().replace('./', GITHUB_MAIN_URL)
 # Classifiers
 # complete classifier list:
 #   http://pypi.python.org/pypi?%3Aaction=list_classifiers
-build_info['classifiers']   = [
-    c('Development Status', '3 - Alpha'),
-    c('License', 'OSI Approved', LICENSE_NAME),
-    *cset('Operating System', 'Unix', 'POSIX', ('Microsoft', 'Windows')),
-    *cset(('Programming Language', 'Python'),
-          '3', ('3', 'Only'), '3.9', '3.10', '3.11')]
 #───────────────────────────────────────────────────────────────────────
 # Project URLs
 build_info['urls'] = {
