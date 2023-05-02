@@ -69,7 +69,7 @@ def _validate(fieldtype: type, value: _Any) -> list[str]:
         return _generic_alias(fieldtype, value)
     return _basic(fieldtype, value)
 #──────────────────────────────────────────────────────────────────────────────
-def _validate_fields(obj: _DataclassWrapped, ExceptionType = TypeError) -> None:
+def _validate_fields(obj: _DataclassWrapped) -> None:
     '''Checks types of the attributes of the class
     '''
     errormessages = []
@@ -84,7 +84,7 @@ def _validate_fields(obj: _DataclassWrapped, ExceptionType = TypeError) -> None:
         errormessages.insert(0,
                              f'{obj.__class__.__qualname__} '
                              'parameters not matching types')
-        raise ExceptionType('\n    '.join(errormessages))
+        raise TypeError('\n    '.join(errormessages))
 #──────────────────────────────────────────────────────────────────────────────
 def validate(cls: type):
     '''Validate after 'init', 'post_init' or not at all (`None`)

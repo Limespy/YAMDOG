@@ -68,12 +68,15 @@ SUBSCRIPT, NORMAL, SUPERSCRIPT = TextLevel
 #─────────────────────────────────────────────────────────────────────────────
 class TextStyle(_Enum):
     '''Text styling options'''
-    BOLD = '**'
-    ITALIC = '*'
-    STRIKETHROUGH = '~~'
-    HIGHLIGHT = '=='
+    BOLD = '**', '**'
+    ITALIC = '*', '*'
+    STRIKETHROUGH = '~~', '~~'
+    HIGHLIGHT = '==', '=='
+    UNDERLINE = '<ins>', '</ins>'
 
-BOLD, ITALIC, STRIKETHROUGH, HIGHLIGHT = TextStyle
+BOLD, ITALIC, STRIKETHROUGH, HIGHLIGHT, UNDERLINE = TextStyle
+
+INDENT = '&nbsp;&nbsp;&nbsp;&nbsp;'
 #─────────────────────────────────────────────────────────────────────────────
 class _ListDict(_defaultdict):
     def __init__(self, *initial: dict[_Any, list[_Any]]) -> None:
@@ -84,7 +87,7 @@ class _ListDict(_defaultdict):
             self[key].extend(sublist)
         return self
 #─────────────────────────────────────────────────────────────────────────────
-_Collected = tuple[_ListDict, _ListDict]
+_Collected = tuple[_ListDict, _ListDict] # Type alias for all collected items
 #═════════════════════════════════════════════════════════════════════════════
 _re_begin = _re.compile(r'^\s*\n\s*')
 _re_middle = _re.compile(r'\s*\n\s*')
@@ -92,10 +95,26 @@ _re_end = _re.compile(r'\s*\n\s*$')
 def _sanitise_str(text: str):
     return _re_middle.sub(' ', _re_end.sub('', _re_begin.sub('', text)))
 #─────────────────────────────────────────────────────────────────────────────
-def _visit(item: _Any,
-           visited: set[int],
-           collected: _Collected
-           ) -> tuple[set[int], _Collected]:
+def _collect(item: _Any,
+             visited: set[int],
+             collected: _Collected
+             ) -> tuple[set[int], _Collected]:
+    '''Checks if item has collectibles and it has not been visited yet
+
+    Parameters
+    ----------
+    item : _Any
+        Item to be maybe collected from
+    visited : set[int]
+        All ids of already collected objects. To prevent infinite loops
+    collected : _Collected
+        previously collected items
+
+    Returns
+    -------
+    tuple[set[int], _Collected]
+        updated visisted and collected
+    '''
     if (hasattr(item, '_collect')
         and isinstance(item, Element)
         and (item_id := id(item)) not in visited):
@@ -123,27 +142,30 @@ def _collect_iter(items: _Iterable, visited: set[int]
     '''
     collected: _Collected = (_ListDict(), _ListDict())
     for item in items:
-        visited, collected = _visit(item, visited, collected)
+        visited, collected = _collect(item, visited, collected)
     return visited, collected
 #═════════════════════════════════════════════════════════════════════════════
 # ELEMENTS BASE CLASSES
 @_dataclass(**_maybeslots)
 class Element:
+    '''Base class for all YAMDOG elements'''
     #─────────────────────────────────────────────────────────────────────────
     def __add__(self, other):
         return Document([self, other]) # type: ignore
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class ContainerElement(Element):
+    '''Base class for elements with content that may be other elements'''
     #─────────────────────────────────────────────────────────────────────────
     def __getattr__(self, attr: str) -> _Any:
         return getattr(self.content, attr)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
-        return _visit(self.content, visited, (_ListDict(), _ListDict()))
+        return _collect(self.content, visited, (_ListDict(), _ListDict()))
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class IterableElement(ContainerElement):
+    '''Base class for elements that have iterable content'''
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
         return _collect_iter(self.content, visited)   # type: ignore
@@ -182,7 +204,8 @@ class Checkbox(ContainerElement):
         return (f'[{"x" if self else " "}] {content}')
     #─────────────────────────────────────────────────────────────────────────
     def __add__(self, other):
-        raise TypeError(f"unsupported operand type(s) for +: '{type(self).__name__}' and '{type(other).__name__}'")
+        raise TypeError(f"unsupported operand type(s) for +: "
+                        f"'{type(self).__name__}' and '{type(other).__name__}'")
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Code(InlineElement):
@@ -220,10 +243,29 @@ class CodeBlock(Element):
                 else '```')
         return f'{tics}{_sanitise_str(str(self.language))}\n{text}\n{tics}'
 #═════════════════════════════════════════════════════════════════════════════
-# Emoji
+@_dataclass(**_maybeslots)
+class Comment(Element):
+    '''Text visible only in the markdown text and not HTML generated from it.
+
+    Parameters
+    ----------
+    Element : _type_
+        _description_
+    '''
+    text: _Any
+    #─────────────────────────────────────────────────────────────────────────
+    def __str__(self) -> str:
+        return f'[{self.text}]: #'
+#═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Emoji(InlineElement):
-    """https://www.webfx.com/tools/emoji-cheat-sheet/"""
+    '''https://www.webfx.com/tools/emoji-cheat-sheet/
+
+    Parameters
+    ----------
+    code: Any
+        Code for the emoji
+    '''
     code: _Any
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
@@ -243,13 +285,11 @@ class Footnote(ContainerElement, InlineElement):
     _index: int = _field(init = False, default = 0)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
-        footnote = _ListDict({str(self.content): [self]})
-        return _visit(self.content, visited, (_ListDict(), footnote))
+        return _collect(self.content, visited,
+                        (_ListDict(), _ListDict({str(self.content): [self]})))
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f'[^{self._index}]'
-#─────────────────────────────────────────────────────────────────────────────
-_CollectedFootnotes = dict[Footnote, list[Footnote]]
 #═════════════════════════════════════════════════════════════════════════════
 # Heading
 @_dataclass(validate = True, **_maybeslots) # type: ignore
@@ -265,7 +305,7 @@ class Heading(ContainerElement):
     in_TOC:
         Flag to Document whether the heading should be added to Table of  Contents
     alt_style: bool
-        Using alternate heading style with ==== or ----
+        Using alternate heading style with ==== or ---- instead of # or ##
 
     Raises
     ------
@@ -309,9 +349,11 @@ class Image(Element):
     '''
     path: _Any
     alt_text: _Any = 'image'
+    caption: _Any = ''
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        return f'![{self.alt_text}]({self.path})'
+        return (f'![{self.alt_text}]({self.path})\n{self.caption}'
+                if self.caption else f'![{self.alt_text}]({self.path})')
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Link(InlineElement):
@@ -334,16 +376,12 @@ class Link(InlineElement):
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
         link = (_ListDict() if self.title is None
                 else _ListDict({(str(self.target), str(self.title)): [self]}))
-        return _visit(self.content, visited, (link, _ListDict()))
+        return _collect(self.content, visited, (link, _ListDict()))
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        if self.content is None:
-            return f'<{self.target}>'
-        if self._index:
-            return f'[{self.content}][{self._index}]'
-        return f'[{self.content}]({self.target})'
-#─────────────────────────────────────────────────────────────────────────────
-_CollectedLinks = dict[tuple[str, str], list[Link]]
+        return (f'<{self.target}>' if self.content is None else
+                (f'[{self.content}][{self._index}]' if self._index else
+                 f'[{self.content}]({self.target})'))
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Listing(IterableElement):
@@ -387,8 +425,7 @@ def make_checklist(items: _Iterable[tuple[bool, _Any]]) -> Listing:
     -------
     Listing
         Unorderd listing containing checkboxes'''
-    return Listing(UNORDERED,
-                   (Checkbox(*item) for item in items)) # type: ignore
+    return Listing(UNORDERED, (Checkbox(*item) for item in items))
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Math(InlineElement):
@@ -487,9 +524,9 @@ def _pad(items: _Iterable[str],
     Parameters
     ----------
     items : Iterable[str]
-        _description_
+        items to be turned to strings and padded
     widths : Iterable[int]
-        _description_
+        widths to which pad to
     alignments : Iterable[Align]
         Text align tags
 
@@ -503,20 +540,11 @@ def _pad(items: _Iterable[str],
     str
         padded text
 
-    Raises
-    ------
-    ValueError
-        if Align is not recognised
     '''
     for align, item, width in zip(alignments, items, widths):
-        if align == LEFT:
-            yield f'{item:<{width}}'
-        elif align == CENTER:
-            yield f'{item:^{width}}'
-        elif align == RIGHT:
-            yield f'{item:>{width}}'
-        else:
-            raise ValueError(f'align {align} not recognised')
+        yield (f'{item:^{width}}' if align == CENTER else
+               (f'{item:>{width}}' if align == RIGHT else
+                (f'{item:<{width}}')))
 #─────────────────────────────────────────────────────────────────────────────
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Table(IterableElement):
@@ -554,8 +582,7 @@ class Table(IterableElement):
                   compact: bool = False,
                   align_pad: _Optional[Align] = None):
         header = data.keys()
-        content = [row for row in _itertools.zip_longest(*data.values(),
-                                                         fillvalue = '')]
+        content = list(_itertools.zip_longest(*data.values(), fillvalue = ''))
         if align is None:
             align = []
 
@@ -591,7 +618,9 @@ class Table(IterableElement):
         header = [str(cell) for cell in self.header]
         headerlen = len(header)
 
-        content = [[str(cell) for cell in row] for row in self.content]
+        # Conversion to str and escaping |
+        content = [[str(cell).replace('|', '&#124;') for cell in row]
+                   for row in self.content]
 
         max_rowlen = headerlen
         for row in content:
@@ -618,7 +647,7 @@ class Table(IterableElement):
         if self.compact: # Compact table
             output = [header, (alignment.value(3) for alignment in align)]
             output.extend(content)
-            return '\n'.join(('|'.join(row) for row in output))
+            return '\n'.join('|'.join(row) for row in output)
         else: # Pretty table
             # maximum cell widths
             max_widths = ([max(len(cell), 3) for cell in header]
@@ -650,15 +679,19 @@ class Text(ContainerElement, InlineElement):
     content: _Any
     style: set[TextStyle] = _field(default_factory = set)
     level: TextLevel = NORMAL
+    colour: _Any = None
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         # superscipt and subcript have to be the innermost
         marker = self.level.value
         text = f'{marker}{self.content}{marker}'
 
+        if self.colour is not None:
+            text = f'<font color="{self.colour}">{text}</font>'
+
         for substyle in self.style:
-            marker = substyle.value
-            text = f'{marker}{text}{marker}'
+            left, right = substyle.value
+            text = f'{left}{text}{right}'
         return text
     #─────────────────────────────────────────────────────────────────────────
     def bold(self):
@@ -701,6 +734,16 @@ class Text(ContainerElement, InlineElement):
         self.style.discard(HIGHLIGHT)
         return self
     #─────────────────────────────────────────────────────────────────────────
+    def underline(self):
+        '''Adds underlining'''
+        self.style.add(UNDERLINE)
+        return self
+    #─────────────────────────────────────────────────────────────────────────
+    def ununderline(self):
+        '''Removes underlining'''
+        self.style.discard(UNDERLINE)
+        return self
+    #─────────────────────────────────────────────────────────────────────────
     def superscribe(self):
         '''Makes text superscript'''
         self.level = SUPERSCRIPT
@@ -741,27 +784,26 @@ class TOC(Element):
 #═════════════════════════════════════════════════════════════════════════════
 #═════════════════════════════════════════════════════════════════════════════
 # Document
-def _preprocess_document(content: _Iterable
-                ) -> tuple[list,
-                           int,
-                           dict[int, list[TOC]],
-                           int,
-                           list[Heading],
-                           _CollectedLinks,
-                           _CollectedFootnotes]:
+def _preprocess_document(content: _Iterable[_Any]
+                         ) -> tuple[list[_Any],
+                                    dict[int, list[TOC]],
+                                    int,
+                                    list[Heading],
+                                    dict[tuple[str, str], list[Link]],
+                                    dict[str, list[Footnote]]]:
     '''Iterates through document tree and collects
         - TOCs
         - headers
         - references
         - footnotes
     and sanitises string objects'''
-    collected: _Collected = (_ListDict(), _ListDict())
-    visited: set[int] = set()
     new_content: list[str] = []
-    TOC_bottomlevel = 0
     TOCs: dict[int, list[TOC]] = _defaultdict(list)
     top_level = 0
     headings: list[Heading] = []
+    collected: _Collected = (_ListDict(), _ListDict())
+    visited: set[int] = set()
+
     for item in content:
         if isinstance(item, str):
             new_content.append(_sanitise_str(item).strip())
@@ -769,22 +811,15 @@ def _preprocess_document(content: _Iterable
             new_content.append(item)
             if isinstance(item, TOC):
                 TOCs[item.level].append(item)
-                if item.level > TOC_bottomlevel:
-                    TOC_bottomlevel = item.level
             else:
+                visited, collected = _collect(item, visited, collected)
                 if isinstance(item, Heading) and item.in_TOC:
                     headings.append(item)
                     if item.level < top_level or not top_level:
                         top_level = item.level
-                visited, collected = _visit(item, visited, collected)
-    return (new_content,
-            TOC_bottomlevel,
-            TOCs,
-            top_level,
-            headings,
-            *collected)
+    return new_content, TOCs, top_level, headings, *collected
 #═════════════════════════════════════════════════════════════════════════════
-def _process_footnotes(footnotes: _CollectedFootnotes) -> str:
+def _process_footnotes(footnotes: dict[str, list[Footnote]]) -> str:
     '''Makes footone list text from collected footnotes and updates
     their indices'''
     info = []
@@ -792,10 +827,10 @@ def _process_footnotes(footnotes: _CollectedFootnotes) -> str:
         # Adding same index to all footnotes with same text
         for footnote in footnote_list:
             footnote._index = index
-        info.append((index, footnote.content))
+        info.append((index, footnote.content)) # Same content in previous loop
     return '\n'.join(f'[^{index}]: {content}' for index, content in info)
 #═════════════════════════════════════════════════════════════════════════════
-def _process_references(references: _CollectedLinks) -> str:
+def _process_references(references: dict[tuple[str, str], list[Link]]) -> str:
     '''Makes reference list text from collected link references and updates
     and their indices'''
     reflines = []
@@ -809,13 +844,10 @@ def _process_references(references: _CollectedLinks) -> str:
 #═════════════════════════════════════════════════════════════════════════════
 def _process_header(language: _Any, content: _Any) -> str:
     language = str(language).strip().lower()
-    if language == 'yaml':
-        return f'---\n{content}\n---'
-    if language == 'toml':
-        return f'+++\n{content}\n+++'
-    if language == 'json':
-        return f';;;\n{content}\n;;;'
-    return f'---{language}\n{content}\n---'
+    return (f'---\n{content}\n---' if language == 'yaml' else
+            (f'+++\n{content}\n+++' if language == 'toml' else
+             (f';;;\n{content}\n;;;' if language == 'json' else
+              f'---{language}\n{content}\n---')))
 #═════════════════════════════════════════════════════════════════════════════
 _square_bracket_translation = ''.maketrans('', '', '[]')
 _punctuation_translation = ''.maketrans(' ', '-', _punctuation)
@@ -824,19 +856,19 @@ def _heading_ref_texts(text: str) -> tuple[str, str]:
     return (text.translate(_square_bracket_translation),
             '#' + text.translate(_punctuation_translation).lower())
 #═════════════════════════════════════════════════════════════════════════════
-def _process_TOC(TOC_bottomlevel: int,
-                 TOCs: dict[int, list[TOC]],
+def _process_TOC(TOCs: dict[int, list[TOC]],
                  headings: _Iterable[Heading],
                  top_level: int
                  ) -> None:
     '''Generates table of content string and sets it to correct TOCs'''
     refcounts: dict[str, int] = _defaultdict(lambda: -1) # {reference: index}
     TOCtexts: dict[int, list[str]] = _defaultdict(list) # {level: texts}
+    TOC_maxlevel = max(TOCs.keys()) # Highest heading level to be included
     for heading in headings:
         text, ref = _heading_ref_texts(str(heading.content))
         refcounts[ref] += 1
 
-        if heading.level > TOC_bottomlevel:
+        if heading.level > TOC_maxlevel: # Short circuit
             continue
 
         if n_duplicates := refcounts[ref]: # Handling multiple same refs
@@ -854,18 +886,19 @@ def _process_TOC(TOC_bottomlevel: int,
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Document(IterableElement):
-    '''Collection of elements
+    '''Highest level collection of elements.
+    Each piece is separated by empty line
 
     Parameters
     ----------
     content: list[Any]
         Content of the document. Can be made of anything convertible to strings
     header_language_and_text: tuple[()] | tuple[Any, Any]
-        If you want a header written in e.g. yaml, then ("yaml", yaml_string)
+        Header language and text. If you want a header written in
+        e.g. yaml, then ("yaml", yaml_string)
     '''
     content: list[_Any] = _field(default_factory = list)
-    header_language_and_text: _Union[tuple[()],
-                                    tuple[_Any, _Any]] = _field(
+    header: _Union[tuple[()], tuple[_Any, _Any]] = _field(
                                         default_factory = tuple) # type: ignore
     #─────────────────────────────────────────────────────────────────────────
     def __add__(self, item: _Any):
@@ -878,25 +911,24 @@ class Document(IterableElement):
             self.content.append(item)
         return self
     #─────────────────────────────────────────────────────────────────────────
-    def __str__(self)  -> str:
+    def __str__(self) -> str:
         (content,
-         TOC_bottomlevel,
          TOCs,
          top_level,
          headings,
-         refs,
+         links,
          footnotes) = _preprocess_document(self.content)
 
-        if self.header_language_and_text: # Making heading
-            content.insert(0, _process_header(*self.header_language_and_text))
+        if self.header: # Making header
+            content.insert(0, _process_header(*self.header))
 
         if footnotes: # Handling footnotes
             content.append(_process_footnotes(footnotes))
 
-        if refs: # Handling link references
-            content.append(_process_references(refs))
+        if links: # Handling link references
+            content.append(_process_references(links))
 
         if TOCs and headings: # Creating TOC
-            _process_TOC(TOC_bottomlevel, TOCs, headings, top_level)
+            _process_TOC(TOCs, headings, top_level)
 
         return '\n\n'.join(str(item) for item in content)

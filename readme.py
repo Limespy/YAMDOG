@@ -110,7 +110,7 @@ def make_examples(source: str) -> md.Document:
 
     doc += get_example('checklist', checklist)
     #%% link
-    link = md.Link('Link to Markdown Guide', 'https://www.markdownguide.org')
+    link = md.Link('https://www.markdownguide.org', 'Link to Markdown Guide')
 
     doc += get_example('link', link)
 
@@ -226,11 +226,11 @@ def make_changelog():
     return doc
 
 def make_further_reading():
-    basic_syntax_link = md.Link('basic syntax',
-                                'https://www.markdownguide.org/basic-syntax/',
+    basic_syntax_link = md.Link('https://www.markdownguide.org/basic-syntax/',
+                                'basic syntax guide',
                                 '')
-    extended_syntax_link = md.Link('extended syntax',
-                                  'https://www.markdownguide.org/basic-syntax/',
+    extended_syntax_link = md.Link('https://www.markdownguide.org/basic-syntax/',
+                                   'extended syntax guide',
                                    '')
 
     doc = md.Document([md.Heading('Further reading', 1)])
@@ -243,8 +243,8 @@ def make_annexes(source):
     doc += '''And here the full source code that wrote this README.
             This can serve as a more advanced example of what this is
             capable of.'''
-    doc += md.Link('The python file can also be found here',
-                   'https://github.com/Limespy/YAMDOG/blob/main/readme.py')
+    doc += md.Link('https://github.com/Limespy/YAMDOG/blob/main/readme.py',
+                   'The python file can also be found here')
     doc += md.CodeBlock(source, 'python')
     return doc
 
@@ -257,8 +257,9 @@ def make_readme(name, pypiname, source):
                        ('wheel', 'PyPI Wheel'),
                        ('pyversions', 'Supported versions'),
                        ('implementation', 'Supported implementations'))
-    pypi_badges = [md.Link(md.Image(f'{shields_url}pypi/{code}/{pypiname}.svg',
-                                    desc), pypi_project_url, '')
+    pypi_badges = [md.Link(pypi_project_url,
+                           md.Image(f'{shields_url}pypi/{code}/{pypiname}.svg',
+                                    desc), '')
                    for code, desc in pypi_badge_info]
 
     # Starting the document
@@ -286,8 +287,9 @@ def main():
     source = pathlib.Path(__file__).read_text('utf8')
 
     doc = make_readme(name, pypiname, source)
-
-    (pathlib.Path(__file__).parent / 'README.md').write_text(str(doc), 'utf8')
+    path_readme = pathlib.Path(__file__).parent / 'README.md'
+    path_readme.write_text(str(doc), 'utf8')
+    path_readme.write_text('\n', 'utf8')
     return doc
 
 if __name__ == '__main__':

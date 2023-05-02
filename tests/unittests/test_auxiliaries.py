@@ -65,8 +65,3 @@ class Test_collect_iter:
     (('php', 'test'),   '---php\ntest\n---')])
 def test_header_str(args, expected):
     assert str(_API._process_header(*args)) == expected
-#══════════════════════════════════════════════════════════════════════════════
-# _pad
-def test_pad_raises_ValueError_with_incorrect_alignment():
-    with pytest.raises(ValueError):
-        list(_API._pad(['a', 'b'], [3, 3], [md.LEFT, 'left'])) # type: ignore
