@@ -25,8 +25,9 @@ class Test_collect_iter:
         footnote = md.Footnote('footnote')
         visited, output = _API._collect_iter([ref, footnote], set())
         links, footnotes = output
-        assert dict(links) == {('target', 'title'): {id(ref): ref}}
-        assert dict(footnotes) == {str(footnote.content): {id(footnote): footnote}}
+        assert visited == {id(ref), id(footnote)}
+        assert dict(links) == {('target', 'title'): [ref]}
+        assert dict(footnotes) == {str(footnote.content): [footnote]}
     #─────────────────────────────────────────────────────────────────────────
     def test_collect_iter_multiple(self):
         ref1 = md.Link('target', 'content', 'title')
@@ -47,14 +48,13 @@ class Test_collect_iter:
             md.Table([1,2], [['a', footnote2]]),
         ], set())
         links, footnotes = output
-        expected_ln = {('target', 'title'): {id(ref1): ref1,
-                                            id(ref2): ref2},
-                    ('target3', 'title3'): {id(ref3): ref3}}
+        expected_ln = {('target', 'title'): [ref1, ref2],
+                       ('target3', 'title3'): [ref3]}
         print(dict(links))
         print(expected_ln)
         assert dict(links) == expected_ln
-        expected_fn = {str(footnote1.content): {id(footnote1): footnote1},
-                    str(footnote2.content): {id(footnote2): footnote2}}
+        expected_fn = {str(footnote1.content): [footnote1],
+                       str(footnote2.content): [footnote2]}
         assert dict(footnotes) == expected_fn
 #══════════════════════════════════════════════════════════════════════════════
 # Header

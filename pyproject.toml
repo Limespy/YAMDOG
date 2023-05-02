@@ -6,7 +6,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yamdog"
-version = "0.4.0.14"
 description = "Yet Another Markdown Only Generator"
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -22,7 +21,7 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 readme = "README.md"
-dynamic = ["dependencies", "optional-dependencies"]
+dynamic = ["dependencies", "optional-dependencies", "version"]
 authors = [
     { name = "Limespy" },
 ]
@@ -37,6 +36,5 @@ Changelog = "https://github.com/Limespy/yamdog/blob/main/README.md#Changelog"
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["dependencies.txt"]}
-
-[tool.setuptools.dynamic.optional-dependencies]
-dev = {file = "dependencies_dev.txt"}
+optional-dependencies = {dev = {file = "dependencies_dev.txt"}}
+version = {attr = "yamdog.__version__"}

@@ -75,20 +75,16 @@ class TextStyle(_Enum):
 
 BOLD, ITALIC, STRIKETHROUGH, HIGHLIGHT = TextStyle
 #─────────────────────────────────────────────────────────────────────────────
-class _ObjectDict(_defaultdict):
-    def __init__(self, initial: _Optional[dict[_Any, dict[int, _Any]]] = None
-                 ) -> None:
-        super().__init__(dict)
-        if initial is not None:
-            self |= initial
+class _ListDict(_defaultdict):
+    def __init__(self, *initial: dict[_Any, list[_Any]]) -> None:
+        super().__init__(list, *initial)
     #─────────────────────────────────────────────────────────────────────────
-    def __ior__(self, other: dict[_Any, dict[int, _Any]]): # type: ignore
-        for key, subdict in other.items():
-            self[key].update(subdict)
+    def __ior__(self, other: dict[_Any, list[_Any]]): # type: ignore
+        for key, sublist in other.items():
+            self[key].extend(sublist)
         return self
-_Collected = tuple[_ObjectDict, _ObjectDict]
-_empty_collected: _Callable[[], _Collected] = lambda: (_ObjectDict(),
-                                                       _ObjectDict())
+#─────────────────────────────────────────────────────────────────────────────
+_Collected = tuple[_ListDict, _ListDict]
 #═════════════════════════════════════════════════════════════════════════════
 _re_begin = _re.compile(r'^\s*\n\s*')
 _re_middle = _re.compile(r'\s*\n\s*')
@@ -100,12 +96,13 @@ def _visit(item: _Any,
            visited: set[int],
            collected: _Collected
            ) -> tuple[set[int], _Collected]:
-    if (item_id := id(item)) not in visited:
+    if (hasattr(item, '_collect')
+        and isinstance(item, Element)
+        and (item_id := id(item)) not in visited):
         visited.add(item_id)
-        if hasattr(item, '_collect') and isinstance(item, Element):
-            visited, new_collected = item._collect(visited) # type: ignore
-            for old, new in zip(collected, new_collected):
-                old |= new
+        visited, new_collected = item._collect(visited) # type: ignore
+        for old, new in zip(collected, new_collected):
+            old |= new
     return visited, collected
 #─────────────────────────────────────────────────────────────────────────────
 def _collect_iter(items: _Iterable, visited: set[int]
@@ -124,7 +121,7 @@ def _collect_iter(items: _Iterable, visited: set[int]
     tuple[dict, dict]
         unique items
     '''
-    collected: _Collected = _empty_collected()
+    collected: _Collected = (_ListDict(), _ListDict())
     for item in items:
         visited, collected = _visit(item, visited, collected)
     return visited, collected
@@ -143,7 +140,7 @@ class ContainerElement(Element):
         return getattr(self.content, attr)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
-        return _visit(self.content, visited, _empty_collected())
+        return _visit(self.content, visited, (_ListDict(), _ListDict()))
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class IterableElement(ContainerElement):
@@ -246,13 +243,13 @@ class Footnote(ContainerElement, InlineElement):
     _index: int = _field(init = False, default = 0)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
-        footnote = _ObjectDict({str(self.content): {id(self): self}})
-        return _visit(self.content, visited, (_ObjectDict(), footnote))
+        footnote = _ListDict({str(self.content): [self]})
+        return _visit(self.content, visited, (_ListDict(), footnote))
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f'[^{self._index}]'
 #─────────────────────────────────────────────────────────────────────────────
-_CollectedFootnotes = dict[Footnote, dict[int, Footnote]]
+_CollectedFootnotes = dict[Footnote, list[Footnote]]
 #═════════════════════════════════════════════════════════════════════════════
 # Heading
 @_dataclass(validate = True, **_maybeslots) # type: ignore
@@ -335,10 +332,9 @@ class Link(InlineElement):
     _index: int = _field(init = False, default = 0)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
-        link = (_ObjectDict() if self.title is None
-                else _ObjectDict({(str(self.target), str(self.title)):
-                                  {id(self): self}}))
-        return _visit(self.content, visited, (link, _ObjectDict()))
+        link = (_ListDict() if self.title is None
+                else _ListDict({(str(self.target), str(self.title)): [self]}))
+        return _visit(self.content, visited, (link, _ListDict()))
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         if self.content is None:
@@ -347,7 +343,7 @@ class Link(InlineElement):
             return f'[{self.content}][{self._index}]'
         return f'[{self.content}]({self.target})'
 #─────────────────────────────────────────────────────────────────────────────
-_CollectedLinks = dict[tuple[str, str], dict[int, Link]]
+_CollectedLinks = dict[tuple[str, str], list[Link]]
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Listing(IterableElement):
@@ -759,7 +755,7 @@ def _preprocess_document(content: _Iterable
         - references
         - footnotes
     and sanitises string objects'''
-    collected: _Collected = (_ObjectDict(), _ObjectDict())
+    collected: _Collected = (_ListDict(), _ListDict())
     visited: set[int] = set()
     new_content: list[str] = []
     TOC_bottomlevel = 0
@@ -792,9 +788,9 @@ def _process_footnotes(footnotes: _CollectedFootnotes) -> str:
     '''Makes footone list text from collected footnotes and updates
     their indices'''
     info = []
-    for index, footnote_dict in enumerate(footnotes.values(), start = 1):
+    for index, footnote_list in enumerate(footnotes.values(), start = 1):
         # Adding same index to all footnotes with same text
-        for footnote in footnote_dict.values():
+        for footnote in footnote_list:
             footnote._index = index
         info.append((index, footnote.content))
     return '\n'.join(f'[^{index}]: {content}' for index, content in info)
@@ -807,7 +803,7 @@ def _process_references(references: _CollectedLinks) -> str:
                                                         start = 1):
         reflines.append(f'[{index}]: <{target}> "{title}"')
         # Adding same index to all links with same text
-        for link in links.values():
+        for link in links:
             link._index = index
     return '\n'.join(reflines)
 #═════════════════════════════════════════════════════════════════════════════

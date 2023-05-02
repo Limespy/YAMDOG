@@ -12,20 +12,27 @@ PATH_SETUP = PATH_BASE / '_performance_setup.py'
 SETUP = re.split(r'#%%.+\n', PATH_SETUP.read_text('utf8'))[1:]
 
 def main():
-    results: dict[str, list] = {'header': ['Dataclass', 'Validated DC', 'Pydantic'],
-                                'size': [],
-                                'creation time': []}
     kwargs = {'content': ['a','b','c'],
                 'separator': '_'}
     n_runs = 1000
-    for setup_index, cls in enumerate((ParagraphDC,
-                                       md.Paragraph,
-                                       ParagraphPyd)):
-        results['size'].append(asizeof(cls(**kwargs)))
-        results['creation time'].append(timeit(f"{cls.__name__}(**kwargs)",
-                                               setup = SETUP[setup_index],
-                                               number = n_runs))
+    classes = {'Dataclass': ParagraphDC,
+               'Validated DC': md.Paragraph,
+               'Pydantic': ParagraphPyd}
+    table = []
+    for setup, (name, cls)  in zip(SETUP, classes.items()):
+        table.append((name,
+                      asizeof(cls(**kwargs)),
+                      timeit(f"{cls.__name__}(**kwargs)",
+                             setup = setup, number = n_runs)*1e6 / n_runs))
 
-    print('\t\t\t' + '\t'.join(results["header"]))
-    print('size [bytes]\t\t' + '\t\t'.join(str(s) for s in results["size"]))
-    print('creation time [μs]\t' + '\t\t'.join(f'{s*1e6 / n_runs:.2f}' for s in results["creation time"]))
+
+    table = [[row[0], str(row[1]), f'{row[2]:.2f}'] for row in table]
+
+    widths = [0] * len(table[0])
+    for row in table:
+        for index, cell in enumerate(row):
+            if (cell_len := len(cell)) > widths[index]:
+                widths[index] = cell_len
+    print('\t\tsize\tcreation time [us]')
+    for row in table:
+        print(f'{row[0]:<{widths[0]}}\t{row[1]:<{widths[1]}}\t{row[2]:<{widths[2]}}')
