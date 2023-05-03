@@ -23,7 +23,9 @@ class Test_collect_iter:
     def test_collect_iter_single(self):
         ref = md.Link('target', 'content', 'title')
         footnote = md.Footnote('footnote')
-        visited, output = _API._collect_iter([ref, footnote], set())
+        visited, output = _API._collect_iter([ref, footnote],
+                                             set(),
+                                             _API._empty_collected())
         links, footnotes = output
         assert visited == {id(ref), id(footnote)}
         assert dict(links) == {('target', 'title'): [ref]}
@@ -46,7 +48,7 @@ class Test_collect_iter:
                         ref1]),
             md.QuoteBlock(footnote1),
             md.Table([1,2], [['a', footnote2]]),
-        ], set())
+        ], set(), _API._empty_collected())
         links, footnotes = output
         expected_ln = {('target', 'title'): [ref1, ref2],
                        ('target3', 'title3'): [ref3]}

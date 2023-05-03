@@ -75,19 +75,12 @@ class TextStyle(_Enum):
     UNDERLINE = '<ins>', '</ins>'
 
 BOLD, ITALIC, STRIKETHROUGH, HIGHLIGHT, UNDERLINE = TextStyle
-
+#─────────────────────────────────────────────────────────────────────────────
 INDENT = '&nbsp;&nbsp;&nbsp;&nbsp;'
 #─────────────────────────────────────────────────────────────────────────────
-class _ListDict(_defaultdict):
-    def __init__(self, *initial: dict[_Any, list[_Any]]) -> None:
-        super().__init__(list, *initial)
-    #─────────────────────────────────────────────────────────────────────────
-    def __ior__(self, other: dict[_Any, list[_Any]]): # type: ignore
-        for key, sublist in other.items():
-            self[key].extend(sublist)
-        return self
-#─────────────────────────────────────────────────────────────────────────────
-_Collected = tuple[_ListDict, _ListDict] # Type alias for all collected items
+_ListDict = _partial(_defaultdict, list)
+_empty_collected = lambda: (_ListDict(), _ListDict())
+_Collected = tuple[_defaultdict, _defaultdict] # Type alias for all collected items
 #═════════════════════════════════════════════════════════════════════════════
 _re_begin = _re.compile(r'^\s*\n\s*')
 _re_middle = _re.compile(r'\s*\n\s*')
@@ -95,9 +88,7 @@ _re_end = _re.compile(r'\s*\n\s*$')
 def _sanitise_str(text: str):
     return _re_middle.sub(' ', _re_end.sub('', _re_begin.sub('', text)))
 #─────────────────────────────────────────────────────────────────────────────
-def _collect(item: _Any,
-             visited: set[int],
-             collected: _Collected
+def _collect(item: _Any, visited: set[int], collected: _Collected
              ) -> tuple[set[int], _Collected]:
     '''Checks if item has collectibles and it has not been visited yet
 
@@ -121,10 +112,11 @@ def _collect(item: _Any,
         visited.add(item_id)
         visited, new_collected = item._collect(visited) # type: ignore
         for old, new in zip(collected, new_collected):
-            old |= new
+            for key, sublist in new.items():
+                old[key].extend(sublist)
     return visited, collected
 #─────────────────────────────────────────────────────────────────────────────
-def _collect_iter(items: _Iterable, visited: set[int]
+def _collect_iter(items: _Iterable, visited: set[int], collected: _Collected
                   ) -> tuple[set[int], _Collected]:
     '''Doing ordered set union thing
 
@@ -140,7 +132,6 @@ def _collect_iter(items: _Iterable, visited: set[int]
     tuple[dict, dict]
         unique items
     '''
-    collected: _Collected = (_ListDict(), _ListDict())
     for item in items:
         visited, collected = _collect(item, visited, collected)
     return visited, collected
@@ -157,18 +148,21 @@ class Element:
 class ContainerElement(Element):
     '''Base class for elements with content that may be other elements'''
     #─────────────────────────────────────────────────────────────────────────
+    def __bool__(self) -> bool:
+        return bool(self.content)
+    #─────────────────────────────────────────────────────────────────────────
     def __getattr__(self, attr: str) -> _Any:
         return getattr(self.content, attr)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
-        return _collect(self.content, visited, (_ListDict(), _ListDict()))
+        return _collect(self.content, visited, _empty_collected())
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class IterableElement(ContainerElement):
     '''Base class for elements that have iterable content'''
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
-        return _collect_iter(self.content, visited)   # type: ignore
+        return _collect_iter(self.content, visited, _empty_collected())   # type: ignore
     #─────────────────────────────────────────────────────────────────────────
     def __iter__(self):
         return iter(self.content)   # type: ignore
@@ -349,11 +343,11 @@ class Image(Element):
     '''
     path: _Any
     alt_text: _Any = 'image'
-    caption: _Any = ''
+    caption: _Any = None
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        return (f'![{self.alt_text}]({self.path})\n{self.caption}'
-                if self.caption else f'![{self.alt_text}]({self.path})')
+        return (f'![{self.alt_text}]({self.path})' if self.caption is None else
+                f'![{self.alt_text}]({self.path})\n{self.caption}')
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Link(InlineElement):
@@ -589,11 +583,10 @@ class Table(IterableElement):
         return cls(header, content, align, compact, align_pad)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
-        visited, collected = _collect_iter(self.header, visited)
+        visited, collected = _collect_iter(self.header, visited,
+                                           _empty_collected())
         for row in self.content:
-            visited, new_collected = _collect_iter(row, visited)
-            for old, new in zip(collected, new_collected):
-                old |= new
+            visited, collected = _collect_iter(row, visited, collected)
         return visited, collected
     #─────────────────────────────────────────────────────────────────────────
     def append(self, row: _Collection) -> None:
