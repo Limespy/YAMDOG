@@ -238,8 +238,8 @@ class CodeBlock(Element):
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         text = str(self.content) # Forces potential ` characters to be resolved
-        mark = ('`' * (n + 1)
-                if (tics := _re_tics.findall(text)) and (n := max(tics)) > 2
+        mark = ('`' * (n + 1) if (tics := _re_tics.findall(text))
+                                  and (n := len(max(tics))) > 2
                 else '```')
         return f'{mark}{_sanitise_str(str(self.language))}\n{text}\n{mark}'
 #═════════════════════════════════════════════════════════════════════════════
