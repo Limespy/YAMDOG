@@ -238,11 +238,10 @@ class CodeBlock(Element):
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         text = str(self.content) # Forces potential ` characters to be resolved
-        tics = ('`' * (n_tics + 1)
-                if ((tics := sorted(_re_tics.findall(text), reverse = True))
-                    and (n_tics := len(tics[0])) > 2)
+        mark = ('`' * (n + 1)
+                if (tics := _re_tics.findall(text)) and (n := max(tics)) > 2
                 else '```')
-        return f'{tics}{_sanitise_str(str(self.language))}\n{text}\n{tics}'
+        return f'{mark}{_sanitise_str(str(self.language))}\n{text}\n{mark}'
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Comment(Element):
