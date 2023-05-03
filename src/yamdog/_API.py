@@ -217,6 +217,7 @@ class Code(InlineElement):
         Content to be turned into inline monospace text
     '''
     content: _Any
+    #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return f'`{self.content}`'
 #─────────────────────────────────────────────────────────────────────────────
@@ -252,10 +253,10 @@ class Comment(Element):
     Element : _type_
         _description_
     '''
-    text: _Any
+    content: _Any
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        return f'[{self.text}]: #'
+        return f'[{self.content}]::'
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Emoji(InlineElement):
