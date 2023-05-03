@@ -7,9 +7,9 @@ import sys
 import tomllib
 
 import tomli_w
-from build import __main__ as build
 
 import readme
+from build import __main__ as build
 
 if '--print' in sys.argv:
     import pprint
