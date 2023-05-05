@@ -707,10 +707,10 @@ class Text(ContainerElement, InlineElement):
 
     Parameters
     ----------
-    text : has method str
-        text to be containes
+    content : has method str
+        Content to be stylised
     style: set[str]
-        style of the text, options are: bold, italic, strikethrough, emphasis
+        Style of the text, options are: bold, italic, strikethrough, emphasis
     level: TextLevel
         NORMAL, SUBSCRIPT or SUPERSCRIPT
     colour: Any
