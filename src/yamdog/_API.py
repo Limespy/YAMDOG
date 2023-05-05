@@ -3,7 +3,9 @@
 Handles"""
 #═════════════════════════════════════════════════════════════════════════════
 # IMPORT
+import csv as _csv
 import itertools as _itertools
+import pathlib as _pathlib
 import re as _re
 import sys as _sys
 from collections import defaultdict as _defaultdict
@@ -12,11 +14,13 @@ from collections.abc import Iterable as _Iterable
 from collections.abc import Sequence as _Sequence
 from enum import Enum as _Enum
 from functools import partial as _partial
+from io import IOBase as _IOBase
 from string import punctuation as _punctuation
 from typing import Any as _Any
 from typing import Callable as _Callable
 from typing import Generator as _Generator
 from typing import Optional as _Optional
+from typing import TextIO as _TextIO
 from typing import Union as _Union
 
 from .dataclass_validate import dataclass as _dataclass
@@ -80,7 +84,7 @@ INDENT = '&nbsp;&nbsp;&nbsp;&nbsp;'
 #─────────────────────────────────────────────────────────────────────────────
 _ListDict = _partial(_defaultdict, list)
 _empty_collected = lambda: (_ListDict(), _ListDict())
-_Collected = tuple[_defaultdict, _defaultdict] # Type alias for all collected items
+_Collected = tuple[_defaultdict, _defaultdict] # Type alias for collected items
 #═════════════════════════════════════════════════════════════════════════════
 _re_begin = _re.compile(r'^\s*\n\s*')
 _re_middle = _re.compile(r'\s*\n\s*')
@@ -243,8 +247,8 @@ class Comment(Element):
 
     Parameters
     ----------
-    Element : _type_
-        _description_
+    content: Any
+        Contents of the comment
     '''
     content: _Any
     #─────────────────────────────────────────────────────────────────────────
@@ -563,7 +567,7 @@ class Table(IterableElement):
         the last align in the iterable, but this can be overridden here.
     '''
     header: _Iterable
-    content: list[_Iterable] = _field(default_factory = list)
+    content: _Sequence[_Sequence] = _field(default_factory = list)
     align: _Union[Align,
                   _Iterable[Align]] = _field(default_factory = list)  # type: ignore
     compact: bool = False
@@ -575,8 +579,83 @@ class Table(IterableElement):
                   align: _Union[Align, _Iterable[Align], None] = None,
                   compact: bool = False,
                   align_pad: _Optional[Align] = None):
+        '''Assembles Table from dictionary
+
+        Parameters
+        ----------
+        data : dict[_Any, _Iterable]
+            _description_
+        align : _Union[Align, _Iterable[Align], None], optional
+            _description_, by default None
+        compact : bool, optional
+            _description_, by default False
+        align_pad : _Optional[Align], optional
+            _description_, by default None
+
+        Returns
+        -------
+        _type_
+            _description_
+        '''
         header = data.keys()
         content = list(_itertools.zip_longest(*data.values(), fillvalue = ''))
+        if align is None:
+            align = []
+
+        return cls(header, content, align, compact, align_pad)
+    #─────────────────────────────────────────────────────────────────────────
+    @classmethod
+    def from_csv(cls,
+                 path_or_file: _Union[_pathlib.Path, _TextIO],
+                 header: _Union[bool, _Iterable] = True,
+                 align: _Union[Align, _Iterable[Align], None] = None,
+                 compact: bool = False,
+                 align_pad: _Optional[Align] = None,
+                 *,
+                 encoding = 'utf8',
+                 **csvkwargs: _Any):
+        '''Assembles Table from pathlike to csv or file object
+
+        Parameters
+        ----------
+        path : _type_, optional
+            _description_, by default None
+        header : _Union[bool, _Iterable, None], optional
+            _description_, by default None
+        align : _Union[Align, _Iterable[Align], None], optional
+            _description_, by default None
+        compact : bool, optional
+            _description_, by default False
+        align_pad : _Optional[Align], optional
+            _description_, by default None
+        file : _type_, optional
+            _description_, by default None
+        csvkwargs : _Optional[dict[str, _Any]], optional
+            _description_, by default None
+
+        Returns
+        -------
+        _type_
+            _description_
+
+        Raises
+        ------
+        ValueError
+            _description_
+        '''
+
+        if isinstance(path_or_file, _IOBase):
+            content = list(_csv.reader(path_or_file, **csvkwargs)) # type: ignore
+        else:
+            with open(path_or_file, 'r', # type: ignore
+                      encoding = encoding, newline = '') as file:
+                content = list(_csv.reader(file, **csvkwargs))
+
+        if header is True:
+            header = content.pop(0)
+        elif header is False:
+            header = []
+
         if align is None:
             align = []
 
@@ -588,24 +667,6 @@ class Table(IterableElement):
         for row in self.content:
             visited, collected = _collect_iter(row, visited, collected)
         return visited, collected
-    #─────────────────────────────────────────────────────────────────────────
-    def append(self, row: _Collection) -> None:
-        '''Appends to content, but checks whe
-
-        Parameters
-        ----------
-        row : _Collection
-            Content to be added as a row
-
-        Raises
-        ------
-        TypeError
-            if row to be appended is not iterable
-        '''
-        if isinstance(row, _Iterable):
-            self.content.append(row)
-        else:
-            raise TypeError(f"'{type(row)}' is not iterable")
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         header = [str(cell) for cell in self.header]
@@ -628,7 +689,7 @@ class Table(IterableElement):
 
         # Pad align with Align
         if isinstance(self.align, Align):
-            align = [self.Align] * max_rowlen
+            align = [self.align] * max_rowlen
         else:
             align = list(self.align)
 
@@ -894,14 +955,19 @@ class Document(IterableElement):
     header: _Union[tuple[()], tuple[_Any, _Any]] = _field(
                                         default_factory = tuple) # type: ignore
     #─────────────────────────────────────────────────────────────────────────
-    def __add__(self, item: _Any):
-        return self.__iadd__(item)
-    #─────────────────────────────────────────────────────────────────────────
-    def __iadd__(self, item: _Any):
-        if isinstance(item, self.__class__):
-            self.content += item.content
+    def __add__(self, other: _Any):
+        if isinstance(other, self.__class__):
+            return self.__class__(self.content + other.content, self.header)
         else:
-            self.content.append(item)
+            content = self.content.copy()
+            content.append(other)
+            return self.__class__(content, self.header)
+    #─────────────────────────────────────────────────────────────────────────
+    def __iadd__(self, other: _Any):
+        if isinstance(other, self.__class__):
+            self.content += other.content
+        else:
+            self.content.append(other)
         return self
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:

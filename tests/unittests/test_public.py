@@ -1,11 +1,15 @@
 '''Unittests for public interface of the package.
 Classes are sorted alphabetically and related functions'''
 import itertools
+import pathlib
 from pprint import pprint
 
 import pytest
 import yamdog as md
+from markdown import markdown # type: ignore
 from yamdog import _API
+
+PATH_BASE = pathlib.Path(__file__).parent
 #═════════════════════════════════════════════════════════════════════════════
 class Test_Checkbox:
     @pytest.mark.parametrize("args,expected", [
@@ -58,6 +62,9 @@ class Test_CodeBlock:
     def test_tics_init_raises(self):
         with pytest.raises(TypeError):
             md.CodeBlock('python', 'a = 1', 1) # type: ignore
+#═════════════════════════════════════════════════════════════════════════════
+def test_Comment_str():
+    assert markdown(str(md.Comment('comment'))) == ''
 #═════════════════════════════════════════════════════════════════════════════
 class Test_Document:
 
@@ -192,6 +199,20 @@ class Test_Document:
         listing.append(md.Link(ref + '1', reftext)) # type: ignore
         headings.append(headings[0])
         assert str(md.Document([md.TOC()] + headings)).startswith(str(listing))
+    #─────────────────────────────────────────────────────────────────────────
+    def test_add_element(self):
+        document = md.Document(['test'])
+        text = md.Text('case', {md.BOLD})
+        document2 = document + text
+        assert document2 is not document
+        assert document2 == md.Document(['test', text])
+    #─────────────────────────────────────────────────────────────────────────
+    def test_add_document(self):
+        document1 = md.Document(['test'])
+        document2 = md.Document(['case'])
+        document3 = document1 + document2
+        assert document1 is not document3 is not document2
+        assert document3 == md.Document(['test', 'case'])
     #─────────────────────────────────────────────────────────────────────────
     def test_iadd_element(self):
         document = md.Document(['test'])
@@ -376,6 +397,80 @@ class Test_Paragraph:
 def test_Quote_str(args, expected):
     assert str(md.Quote(*args)) == expected
 #═════════════════════════════════════════════════════════════════════════════
+class Test_Table:
+    path_tables = PATH_BASE / 'tables'
+    simple_table = ('| a   | b   |\n'
+                    '| :-- | :-- |\n'
+                    '| 1   | 2   |')
+    @pytest.mark.parametrize("args,expected_pretty,expected_compact", [
+        ((['a', 'b', 'c'],
+          [[1, 2, 3333],
+           (4, 5, 6, 7)],
+          [md.LEFT, md.CENTER, md.RIGHT]),
+        '| a   |  b  |    c |     |\n'
+        '| :-- | :-: | ---: | --: |\n'
+        '| 1   |  2  | 3333 |     |\n'
+        '| 4   |  5  |    6 |   7 |',
+        'a|b|c|\n'
+        ':--|:-:|--:|--:\n'
+        '1|2|3333|\n'
+        '4|5|6|7'),
+    ])
+    def test_str(self,args, expected_pretty, expected_compact):
+        assert str(md.Table(*args)) == expected_pretty
+        assert str(md.Table(*args, compact = True)) == expected_compact # type: ignore
+    #─────────────────────────────────────────────────────────────────────────
+    def test_alignment_fill(self):
+        assert str(md.Table(['a', 'b'], [[1, 2]])) == self.simple_table
+    #─────────────────────────────────────────────────────────────────────────
+    def test_alignment_not_iterable(self):
+        assert str(md.Table(['a', 'b'],
+                            [[1, 2]],
+                            md.RIGHT)) == ('|   a |   b |\n'
+                                           '| --: | --: |\n'
+                                           '|   1 |   2 |')
+    #─────────────────────────────────────────────────────────────────────────
+    def test_append_when_conten_list(self):
+        table = md.Table(['a', 'b'], [[1, 2]])
+        table.append([3, 4])
+        assert table.content == [[1,2], [3,4]]
+    #─────────────────────────────────────────────────────────────────────────
+    def test_from_dict(self):
+        dictionary = {'a': (1,2),
+                      'b': (1,2,3)}
+        assert str(md.Table.from_dict(dictionary)) == ('| a   | b   |\n' # type: ignore
+                                                       '| :-- | :-- |\n'
+                                                       '| 1   | 1   |\n'
+                                                       '| 2   | 2   |\n'
+                                                       '|     | 3   |')
+    #─────────────────────────────────────────────────────────────────────────
+    def test_from_csv_with_header(self):
+        assert str(md.Table.from_csv(self.path_tables / 'with_header.csv')
+                   ) == self.simple_table
+    #─────────────────────────────────────────────────────────────────────────
+    def test_from_csv_without_header(self):
+        assert str(md.Table.from_csv(self.path_tables / 'without_header.csv',
+                                     ['a', 'b'])) == self.simple_table
+    #─────────────────────────────────────────────────────────────────────────
+    def test_from_csv_header_False(self):
+        assert str(md.Table.from_csv(self.path_tables / 'with_header.csv',
+                                     False)) == ('|     |     |\n'
+                                                 '| :-- | :-- |\n'
+                                                 '| a   | b   |\n'
+                                                 '| 1   | 2   |')
+    #─────────────────────────────────────────────────────────────────────────
+    def test_from_csv_csvkwargs(self):
+        assert str(md.Table.from_csv(self.path_tables
+                                     / 'semicolon_separated.csv',
+                                     delimiter = ';')) == self.simple_table
+    #─────────────────────────────────────────────────────────────────────────
+    def test_from_csv_file(self):
+        with open(self.path_tables / 'with_header.csv', 'r',
+                  encoding = 'utf8', newline = '') as file:
+            print(type(file))
+            table = md.Table.from_csv(file)
+        assert str(table) == self.simple_table
+#═════════════════════════════════════════════════════════════════════════════
 class Test_Text:
     @pytest.mark.parametrize("args, expected", [
         (('',),                 ''),
@@ -413,49 +508,16 @@ class Test_Text:
         assert md.HIGHLIGHT in text.highlight().style
         assert md.HIGHLIGHT not in text.unhighlight().style
         assert not text.style
+        assert md.UNDERLINE in text.underline().style
+        assert md.UNDERLINE not in text.ununderline().style
+        assert not text.style
         text.superscribe()
         assert text.subscribe().level == md.SUBSCRIPT
         assert text.superscribe().level == md.SUPERSCRIPT
         assert text.normalise().level == md.NORMAL
+        text.bold().italicize().highlight().superscribe()
+        assert not text.destyle().style
+        assert text.level == md.SUPERSCRIPT
         text.bold().italicize().highlight()
         assert not text.reset().style
-#═════════════════════════════════════════════════════════════════════════════
-class Test_Table:
-    @pytest.mark.parametrize("args,expected_pretty,expected_compact", [
-        ((['a', 'b', 'c'],
-          [[1, 2, 3333],
-           (4, 5, 6, 7)],
-          [md.LEFT, md.CENTER, md.RIGHT]),
-        '| a   |  b  |    c |     |\n'
-        '| :-- | :-: | ---: | --: |\n'
-        '| 1   |  2  | 3333 |     |\n'
-        '| 4   |  5  |    6 |   7 |',
-        'a|b|c|\n'
-        ':--|:-:|--:|--:\n'
-        '1|2|3333|\n'
-        '4|5|6|7'),
-    ])
-    def test_str(self,args, expected_pretty, expected_compact):
-        assert str(md.Table(*args)) == expected_pretty
-        assert str(md.Table(*args, compact = True)) == expected_compact # type: ignore
-    #─────────────────────────────────────────────────────────────────────────
-    def test_alignment_fill(self):
-        assert str(md.Table(['a', 'b'], [[1, 2]])) == ('| a   | b   |\n'
-                                                       '| :-- | :-- |\n'
-                                                       '| 1   | 2   |')
-    #─────────────────────────────────────────────────────────────────────────
-    def test_append(self):
-        table = md.Table(['a', 'b'], [[1, 2]])
-        table.append([3, 4])
-        assert table.content == [[1,2], [3,4]]
-        with pytest.raises(TypeError):
-            table.append(1) # type: ignore
-    #─────────────────────────────────────────────────────────────────────────
-    def test_from_dict(self):
-        dictionary = {'a': (1,2),
-                      'b': (1,2,3)}
-        assert str(md.Table.from_dict(dictionary)) == ('| a   | b   |\n' # type: ignore
-                                                       '| :-- | :-- |\n'
-                                                       '| 1   | 1   |\n'
-                                                       '| 2   | 2   |\n'
-                                                       '|     | 3   |')
+        assert text.level == md.NORMAL

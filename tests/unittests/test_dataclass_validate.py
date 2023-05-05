@@ -1,11 +1,11 @@
 # type: ignore
 from collections import abc
-from dataclasses import dataclass
 from typing import Any
 from typing import Union
 
 import pytest
 from yamdog.dataclass_validate import dataclass
+from yamdog.dataclass_validate import field
 
 #══════════════════════════════════════════════════════════════════════════════
 def _check(cls: type, correct_args: list[Any], index: int, value: Any):
@@ -21,6 +21,7 @@ class DictClass:
     dict1: dict
     dict2: dict[int, int]
     dict3: dict[int, dict[int, int]]
+    no_init: int = field(init = False)
 #──────────────────────────────────────────────────────────────────────────────
 def test_type_validation_dict_valid():
     DictClass(*dict_args)
