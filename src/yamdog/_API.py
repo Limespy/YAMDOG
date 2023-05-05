@@ -151,6 +151,7 @@ class Element:
 @_dataclass(**_maybeslots)
 class ContainerElement(Element):
     '''Base class for elements with content that may be other elements'''
+    content: _Any
     #─────────────────────────────────────────────────────────────────────────
     def __bool__(self) -> bool:
         return bool(self.content)
@@ -166,10 +167,10 @@ class IterableElement(ContainerElement):
     '''Base class for elements that have iterable content'''
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
-        return _collect_iter(self.content, visited, _empty_collected())   # type: ignore
+        return _collect_iter(self.content, visited, _empty_collected())
     #─────────────────────────────────────────────────────────────────────────
     def __iter__(self):
-        return iter(self.content)   # type: ignore
+        return iter(self.content)
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass
 class InlineElement(Element):
@@ -184,13 +185,12 @@ class Checkbox(ContainerElement):
 
     Parameters
     ----------
-    checked: bool
-        Whether the checkbox is checked or not
     content: Any
         content coming after the checkbox, e.g. [x] content
-    '''
     checked: bool
-    content: _Any
+        Whether the checkbox is checked or not
+    '''
+    checked: bool = False
     #─────────────────────────────────────────────────────────────────────────
     def __bool__(self) -> bool:
         return self.checked
@@ -211,13 +211,13 @@ class Code(InlineElement):
 
     Parameters
     ----------
-    content: Any
+    text: Any
         Content to be turned into inline monospace text
     '''
-    content: _Any
+    text: _Any
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        return f'`{self.content}`'
+        return f'`{self.text}`'
 #─────────────────────────────────────────────────────────────────────────────
 _re_tics = _re.compile(r'(?:`)+')
 @_dataclass(**_maybeslots)
@@ -226,16 +226,16 @@ class CodeBlock(Element):
 
     Parameters
     ----------
-    content: Any
+    text: Any
         Text to be displayed in the code block
     language: Any, default ''
         language name to be placed on the code block beginning
     '''
-    content: _Any
+    text: _Any
     language: _Any = ''
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        text = str(self.content) # Forces potential ` characters to be resolved
+        text = str(self.text) # Forces potential ` characters to be resolved
         mark = ('`' * (n + 1) if (tics := _re_tics.findall(text))
                                   and (n := len(max(tics))) > 2
                 else '```')
@@ -247,13 +247,13 @@ class Comment(Element):
 
     Parameters
     ----------
-    content: Any
+    text: Any
         Contents of the comment
     '''
-    content: _Any
+    text: _Any
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        return f'[{self.content}]::'
+        return f'[{self.text}]::'
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Emoji(InlineElement):
@@ -279,7 +279,6 @@ class Footnote(ContainerElement, InlineElement):
     content: Any
         Content to be displayed as the note text
     '''
-    content: _Any
     _index: int = _field(init = False, default = 0)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
@@ -310,7 +309,6 @@ class Heading(ContainerElement):
     ValueError
         If level not in in range [1, 6]
     '''
-    content: _Any
     level: int
     in_TOC: bool = True
     alt_style: bool = False # Underline ----- instead of #
@@ -387,13 +385,13 @@ class Listing(IterableElement):
 
     Parameters
     ----------
-    style: ListingStyle
-        ORDERED, UNORDERED or DEFINITION
     content: Iterable
         Content of the listing
-    '''
     style: ListingStyle
+        ORDERED, UNORDERED or DEFINITION
+    '''
     content: _Iterable[_Any]
+    style: ListingStyle = UNORDERED
     #─────────────────────────────────────────────────────────────────────────
     def __getattr__(self, attr: str) -> _Any:
         return getattr(self.content, attr)
@@ -412,7 +410,7 @@ class Listing(IterableElement):
                               + str(item).replace('\n', '\n'+ ' '* len(prefix)))
         return '\n'.join(output)
 #─────────────────────────────────────────────────────────────────────────────
-def make_checklist(items: _Iterable[tuple[bool, _Any]]) -> Listing:
+def make_checklist(items: _Iterable[tuple[_Any, bool]]) -> Listing:
     '''Assembles a Listing of checkboxes from iterable
 
     Parameters
@@ -423,7 +421,7 @@ def make_checklist(items: _Iterable[tuple[bool, _Any]]) -> Listing:
     -------
     Listing
         Unorderd listing containing checkboxes'''
-    return Listing(UNORDERED, (Checkbox(*item) for item in items))
+    return Listing((Checkbox(*item) for item in items), UNORDERED)
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Math(InlineElement):
@@ -505,7 +503,6 @@ class Quote(ContainerElement):
     content: Any
         Content to be wrapped in a quote block
     '''
-    content: _Any
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
         return '> ' + str(self.content).replace('\n', '\n> ')
@@ -544,16 +541,18 @@ def _pad(items: _Iterable[str],
                (f'{item:>{width}}' if align == RIGHT else
                 (f'{item:<{width}}')))
 #─────────────────────────────────────────────────────────────────────────────
+_table_translation = str.maketrans({'|': '&#124;',
+                                    '\n': '<br><br>'})
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Table(IterableElement):
     '''Table of
 
     Parameters
     ----------
+    content: Iterable[Iterable]
+        Main body of the table
     header: Iterable
         Header of the table. Will be padded to table width
-    content: list[Collection]
-        Main body of the table
     align: Align | Iterable[Alingment]
         Alignment of the columns. LEFT, CENTER, RIGHT
         If just Align, the all columns are aligned with that.
@@ -566,8 +565,8 @@ class Table(IterableElement):
         By default missing alignments are padded with the align of
         the last align in the iterable, but this can be overridden here.
     '''
+    content: _Iterable[_Iterable]
     header: _Iterable
-    content: _Sequence[_Sequence] = _field(default_factory = list)
     align: _Union[Align,
                   _Iterable[Align]] = _field(default_factory = list)  # type: ignore
     compact: bool = False
@@ -591,18 +590,13 @@ class Table(IterableElement):
             _description_, by default False
         align_pad : _Optional[Align], optional
             _description_, by default None
-
-        Returns
-        -------
-        _type_
-            _description_
         '''
         header = data.keys()
         content = list(_itertools.zip_longest(*data.values(), fillvalue = ''))
         if align is None:
             align = []
 
-        return cls(header, content, align, compact, align_pad)
+        return cls(content, header, align, compact, align_pad)
     #─────────────────────────────────────────────────────────────────────────
     @classmethod
     def from_csv(cls,
@@ -632,16 +626,6 @@ class Table(IterableElement):
             _description_, by default None
         csvkwargs : _Optional[dict[str, _Any]], optional
             _description_, by default None
-
-        Returns
-        -------
-        _type_
-            _description_
-
-        Raises
-        ------
-        ValueError
-            _description_
         '''
 
         if isinstance(path_or_file, _IOBase):
@@ -659,7 +643,7 @@ class Table(IterableElement):
         if align is None:
             align = []
 
-        return cls(header, content, align, compact, align_pad)
+        return cls(content, header, align, compact, align_pad)
     #─────────────────────────────────────────────────────────────────────────
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
         visited, collected = _collect_iter(self.header, visited,
@@ -673,7 +657,7 @@ class Table(IterableElement):
         headerlen = len(header)
 
         # Conversion to str and escaping |
-        content = [[str(cell).replace('|', '&#124;') for cell in row]
+        content = [[str(cell).translate(_table_translation) for cell in row]
                    for row in self.content]
 
         max_rowlen = headerlen
@@ -729,8 +713,9 @@ class Text(ContainerElement, InlineElement):
         style of the text, options are: bold, italic, strikethrough, emphasis
     level: TextLevel
         NORMAL, SUBSCRIPT or SUPERSCRIPT
+    colour: Any
+        Uses HTML tags to make colour
     '''
-    content: _Any
     style: set[TextStyle] = _field(default_factory = set)
     level: TextLevel = NORMAL
     colour: _Any = None
@@ -903,8 +888,8 @@ def _process_header(language: _Any, content: _Any) -> str:
              (f';;;\n{content}\n;;;' if language == 'json' else
               f'---{language}\n{content}\n---')))
 #═════════════════════════════════════════════════════════════════════════════
-_square_bracket_translation = ''.maketrans('', '', '[]')
-_punctuation_translation = ''.maketrans(' ', '-', _punctuation)
+_square_bracket_translation = str.maketrans('', '', '[]')
+_punctuation_translation = str.maketrans(' ', '-', _punctuation)
 def _heading_ref_texts(text: str) -> tuple[str, str]:
     '''Generates visible link text and internal link target'''
     return (text.translate(_square_bracket_translation),

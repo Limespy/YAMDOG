@@ -13,15 +13,15 @@ PATH_BASE = pathlib.Path(__file__).parent
 #═════════════════════════════════════════════════════════════════════════════
 class Test_Checkbox:
     @pytest.mark.parametrize("args,expected", [
-        ((True, 'test'), '[x] test'),
-        ((False, 'test'), '[ ] test')
+        (('test', True), '[x] test'),
+        (('test', False), '[ ] test')
     ])
     def test_str(self, args, expected):
         assert str(md.Checkbox(*args)) == expected
     #─────────────────────────────────────────────────────────────────────────
     def test_add_raises_type_error(self):
         with pytest.raises(TypeError):
-            md.Checkbox(True, 'test') + md.Checkbox(False, 'test')
+            md.Checkbox('test', True) + md.Checkbox('test', False)
 #═════════════════════════════════════════════════════════════════════════════
 # Code
 @pytest.mark.parametrize("args,expected", [
@@ -190,10 +190,10 @@ class Test_Document:
         # creating example
         reftext, ref = _API._heading_ref_texts(headings[3].content) # level up to 4
 
-        listing = md.Listing(md.UNORDERED, [md.Link(ref, reftext)])
+        listing = md.Listing([md.Link(ref, reftext)],md.UNORDERED)
         for heading in reversed(headings[:3]):
             reftext, ref = _API._heading_ref_texts(heading.content)
-            listing = md.Listing(md.UNORDERED, [(md.Link(ref, reftext), listing)])
+            listing = md.Listing([(md.Link(ref, reftext), listing)], md.UNORDERED)
         # Testing duplicate headers
         reftext, ref = _API._heading_ref_texts(headings[0].content)
         listing.append(md.Link(ref + '1', reftext)) # type: ignore
@@ -291,28 +291,32 @@ class Test_Link:
 #═════════════════════════════════════════════════════════════════════════════
 class Test_Listing:
     @pytest.mark.parametrize("args, expected", [
-        ((md.ORDERED, [1, 2]), '1. 1\n2. 2'),
-        ((md.UNORDERED, [1, 2]), '- 1\n- 2'),
-        ((md.DEFINITION, [1, 2]), ': 1\n: 2'),
+        (([1, 2], md.ORDERED), '1. 1\n2. 2'),
+        (([1, 2], md.UNORDERED), '- 1\n- 2'),
+        (([1, 2], md.DEFINITION), ': 1\n: 2'),
     ])
     def test_str(self, args, expected):
         assert str(md.Listing(*args)) == expected
     #─────────────────────────────────────────────────────────────────────────
     def test_multiline_str(self):
-        assert str(md.Listing(md.ORDERED, ['a\nb'])) == ('1. a\n'
+        assert str(md.Listing(['a\nb'], md.ORDERED)) == ('1. a\n'
                                                          '   b')
     #─────────────────────────────────────────────────────────────────────────
     def test_nested(self):
-        inner_listing = md.Listing(md.UNORDERED, ('a', 'b'))
-        listing = md.Listing(md.ORDERED, (1, 2, (3, inner_listing)))
+        inner_listing = md.Listing(('a', 'b'), md.UNORDERED)
+        listing = md.Listing((1, 2, (3, inner_listing)), md.ORDERED)
         assert str(listing) == ('1. 1\n'
                                 '2. 2\n'
                                 '3. 3\n'
                                 f'{_API._INDENT}- a\n'
                                 f'{_API._INDENT}- b')
+    @pytest.mark.parametrize('args, expected',((([], md.ORDERED), False),
+                                               (([1], md.ORDERED), True)))
+    def test_bool(self, args, expected):
+        assert bool(md.Listing(*args)) == expected
 #═════════════════════════════════════════════════════════════════════════════
 class Test_make_checklist:
-    arg = [(True, 'testtrue'), (False, 'testfalse')]
+    arg = [('testtrue', True), ('testfalse', False)]
     @pytest.fixture
     def checklist(self) -> md.Listing:
         return md.make_checklist(self.arg)
@@ -403,9 +407,9 @@ class Test_Table:
                     '| :-- | :-- |\n'
                     '| 1   | 2   |')
     @pytest.mark.parametrize("args,expected_pretty,expected_compact", [
-        ((['a', 'b', 'c'],
-          [[1, 2, 3333],
+        (([[1, 2, 3333],
            (4, 5, 6, 7)],
+           ['a', 'b', 'c'],
           [md.LEFT, md.CENTER, md.RIGHT]),
         '| a   |  b  |    c |     |\n'
         '| :-- | :-: | ---: | --: |\n'
@@ -421,17 +425,17 @@ class Test_Table:
         assert str(md.Table(*args, compact = True)) == expected_compact # type: ignore
     #─────────────────────────────────────────────────────────────────────────
     def test_alignment_fill(self):
-        assert str(md.Table(['a', 'b'], [[1, 2]])) == self.simple_table
+        assert str(md.Table([[1, 2]], ['a', 'b'])) == self.simple_table
     #─────────────────────────────────────────────────────────────────────────
     def test_alignment_not_iterable(self):
-        assert str(md.Table(['a', 'b'],
-                            [[1, 2]],
+        assert str(md.Table([[1, 2]],
+                            ['a', 'b'],
                             md.RIGHT)) == ('|   a |   b |\n'
                                            '| --: | --: |\n'
                                            '|   1 |   2 |')
     #─────────────────────────────────────────────────────────────────────────
     def test_append_when_conten_list(self):
-        table = md.Table(['a', 'b'], [[1, 2]])
+        table = md.Table([[1, 2]], ['a', 'b'])
         table.append([3, 4])
         assert table.content == [[1,2], [3,4]]
     #─────────────────────────────────────────────────────────────────────────
@@ -521,3 +525,9 @@ class Test_Text:
         text.bold().italicize().highlight()
         assert not text.reset().style
         assert text.level == md.NORMAL
+    #─────────────────────────────────────────────────────────────────────────
+    def test_colour(self):
+        md.Text('content', colour = 'colour')
+        assert str(md.Text('content', colour = 'colour')) == (
+            '<font color="colour">content</font>'
+            )

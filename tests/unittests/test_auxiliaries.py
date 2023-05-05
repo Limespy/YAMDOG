@@ -47,7 +47,7 @@ class Test_collect_iter:
                         md.Text('test-no-collect2', {md.BOLD}),
                         ref1]),
             md.QuoteBlock(footnote1),
-            md.Table([1,2], [['a', footnote2]]),
+            md.Table([['a', footnote2]], [1,2]),
         ], set(), _API._empty_collected())
         links, footnotes = output
         expected_ln = {('target', 'title'): [ref1, ref2],
