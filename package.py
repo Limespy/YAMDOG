@@ -49,7 +49,7 @@ def main(args = sys.argv[1:]):
     #%%═════════════════════════════════════════════════════════════════════
     # Run tests first
     if '--no-tests' in args:
-        args.pop(args.index('--notests'))
+        args.pop(args.index('--no-tests'))
     else:
         import tests
         print('Running typing checks')
@@ -85,6 +85,9 @@ def main(args = sys.argv[1:]):
     if is_verbose:
         print(f'\n{header("Starting packaging setup", "=", "=")}\n')
 
+    if '--build-number' in args:
+        master_info['build-number'] += 1
+        VERSION += f'.{master_info["build-number"]}'
     build_info['version'] = VERSION
     package_name = master_info["package_name"]
     full_name = master_info.get("full_name",
@@ -119,6 +122,7 @@ def main(args = sys.argv[1:]):
             pprint.pprint(value)
     #%%═════════════════════════════════════════════════════════════════════
     # RUNNING THE BUILD
+
     pyproject['project'] = build_info
     pyproject['master-info'] = master_info
     PATH_PYPROJECT.write_text(tomli_w.dumps(pyproject))
@@ -132,7 +136,7 @@ def main(args = sys.argv[1:]):
     if is_verbose:
         print(f'\n{header("Calling build", "=", "=")}\n')
     if not '--no-build' in args:
-        master_info['build-number'] += 1
+
         build.main([f'-C--config-setting=--tag-build={master_info["build-number"]}'])
     if is_verbose:
         print(f'\n{header("Returning README", "=", "=")}\n')
