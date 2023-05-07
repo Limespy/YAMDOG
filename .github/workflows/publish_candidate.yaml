@@ -6,43 +6,24 @@ on:
       - release-candidate
 
 jobs:
-  test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        python-version: ['3.9', '3.11']
-
-    steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4.6.0
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install tox tox-gh-actions
-    - name: Test with tox
-      run: tox
   build_and_publish:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout to release-candidate
         uses: actions/checkout@v3
         with:
           ref: release-candidate
+      - name: Test
+        uses: ./.github/workflows/tests.yml
       - name: Set up Python 3.11
         uses: actions/setup-python@v4.6.0
         with:
           python-version: '3.11'
-      - name: Install in editable mode
+      - name: Install in editable mode and build
         run: |
           python -m pip install --upgrade pip
           pip install -e .[dev]
-      - name: Build package
-        run: python package.py --notests
+          python package.py --notests
       - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:

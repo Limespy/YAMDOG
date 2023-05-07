@@ -4,9 +4,10 @@ on:
   push:
     branches-ignore:
       - main
+      - release-candidate
   pull_request:
-    branches:
-      - '**'
+  workflow_call:
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
