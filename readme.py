@@ -1,8 +1,15 @@
+import datetime
 import pathlib
 import re
 
 import yamdog as md
 
+PATH_BASE = pathlib.Path(__file__).parent
+PATH_README = PATH_BASE / 'README.md'
+PATH_CHANGELOG = PATH_BASE / '.changelog.md'
+PATH_PYPROJECT = PATH_BASE / 'pyproject.toml'
+VERSION = md.__version__
+#=======================================================================
 def make_examples(source: str) -> md.Document:
     '''Examples are collected via source code introspection'''
     # First getting the example code blocks
@@ -30,7 +37,7 @@ def make_examples(source: str) -> md.Document:
     ])
 
     #%% document
-    document = md.Document()
+    document = md.Document([])
 
     doc += "Let's start with an empty document"
     doc += examples['document']
@@ -67,17 +74,17 @@ def make_examples(source: str) -> md.Document:
     doc += get_example('paragraph', paragraph)
 
     #%% table
-    table = md.Table(['First column', 'Second column', 'Third column'],
-                     [['a', 1, 'Python'],
+    table = md.Table([['a', 1, 'Python'],
                       ['b', 2, 'Markdown']],
+                     ['First column', 'Second column', 'Third column'],
                      [md.RIGHT, md.LEFT, md.CENTER])
 
     doc += get_example('table', table)
 
     #%% compact table
-    table = md.Table(['First column', 'Second column', 'Third column'],
-                     [['a', 1, 'Python'],
+    table = md.Table([['a', 1, 'Python'],
                       ['b', 2, 'Markdown']],
+                     ['First column', 'Second column', 'Third column'],
                      [md.RIGHT, md.LEFT, md.CENTER],
                      True)
 
@@ -92,21 +99,20 @@ def make_examples(source: str) -> md.Document:
     doc += examples['table compact attribute']
 
     #%% listing
-    listing = md.Listing(md.UNORDERED,
-                         ['Just normal text',
+    listing = md.Listing(['Just normal text',
                           md.Text('some stylised text', {md.ITALIC}),
-                          md.Checkbox(False, 'Listings can include checkboxes'),
-                          md.Checkbox(True, 'Checked and unchecked option available'),
+                          md.Checkbox('Listings can include checkboxes', False),
+                          md.Checkbox('Checked and unchecked option available', True),
                           ('Sublist by using a tuple',
-                            md.Listing(md.ORDERED,
-                                      ['first', 'second']))])
+                            md.Listing(['first', 'second'], md.ORDERED))],
+                          md.UNORDERED)
 
     doc += get_example('listing', listing)
 
     #%% checklist
-    checklist = md.make_checklist([(False, 'unchecked box'),
-                                   (True, 'checked box'),
-                                   (True, 'done')])
+    checklist = md.make_checklist([('unchecked box', False),
+                                   ('checked box', True),
+                                   ('done', True)])
 
     doc += get_example('checklist', checklist)
     #%% link
@@ -115,7 +121,7 @@ def make_examples(source: str) -> md.Document:
     doc += get_example('link', link)
 
     #%% codeblock
-    codeblock = md.CodeBlock('import yamdog as md\n\ndoc = md.Document()',
+    codeblock = md.CodeBlock('import yamdog as md\n\ndoc = md.Document([])',
                              'python')
 
     doc += get_example('codeblock', codeblock)
@@ -147,7 +153,7 @@ def make_examples(source: str) -> md.Document:
     doc += examples['calling document']
 
     #%% from empty document
-    document = md.Document()
+    document = md.Document([])
     document += heading
     document += link
     document += paragraph
@@ -176,7 +182,7 @@ def make_examples(source: str) -> md.Document:
     doc += document
 
     return doc
-
+#=======================================================================
 def make_quick_start_guide(name, pypiname, source):
     doc = md.Document([
         md.Heading('Quick start guide', 1),
@@ -196,8 +202,8 @@ def make_quick_start_guide(name, pypiname, source):
         md.CodeBlock(f'import {pypiname} as md', 'python'),
         md.Heading('Using the package', 2),
         f'There are two main things to building a Markdown document using {name}',
-        md.Listing(md.ORDERED, ['Making elements',
-                               'Combining elements into a document']),
+        md.Listing(['Making elements',
+                    'Combining elements into a document'], md.ORDERED),
         md.Paragraph(['You can call ',
             md.Code('str'),
             ' on the element directly to get the markdown source']),
@@ -208,23 +214,40 @@ def make_quick_start_guide(name, pypiname, source):
         ])
     doc += make_examples(source)
     return doc
+#=======================================================================
+re_heading = re.compile(r'^#* .*$')
 
+def parse_md_element(text: str):
+    if match := re_heading.match(text):
+        hashes, content = match[0].split(' ', 1)
+        return md.Heading(content, len(hashes))
+    else:
+        return md.Raw(text)
+#-----------------------------------------------------------------------
+def parse_md(text: str):
+    return md.Document([parse_md_element(item.strip())
+                        for item in text.split('\n\n')])
+#-----------------------------------------------------------------------
+def make_changelog(level: int):
+    doc = md.Document([md.Heading('Changelog', level, in_TOC = False)])
+    changelog = parse_md(PATH_CHANGELOG.read_text())
+    if changelog:
+        if (latest := changelog.content[0]).content.split(' ', 1)[0] == VERSION:
+            latest.content = f'{VERSION} {datetime.date.today().isoformat()}'
+        else:
+            raise ValueError('Changelog not up to date')
 
-def make_changelog():
-    doc = md.Document([md.Heading('Changelog', 1)])
+        PATH_CHANGELOG.write_text(str(changelog) + '\n')
 
-    changelog = (('0.4.0', '2023-01-23', ['Much better type validation',
-                                          'Some comparisons']),
-                 ('0.3.1', '2023-01-23', ['Preliminary type validation',
-                                          'Full test coverage'])
-                 )
+        for item in changelog:
+            if isinstance(item, md.Heading):
+                item.level = level + 1
+                item.in_TOC = False
 
-    for version, date, changes in changelog:
-        doc += md.Heading(f'{version} {date}', 2, in_TOC = False)
-        doc += md.Listing(md.UNORDERED, changes)
+        doc += changelog
 
     return doc
-
+#=======================================================================
 def make_further_reading():
     basic_syntax_link = md.Link('https://www.markdownguide.org/basic-syntax/',
                                 'basic syntax guide',
@@ -234,9 +257,9 @@ def make_further_reading():
                                    '')
 
     doc = md.Document([md.Heading('Further reading', 1)])
-    doc += md.Listing(md.UNORDERED, [basic_syntax_link, extended_syntax_link])
+    doc += md.Listing([basic_syntax_link, extended_syntax_link], md.UNORDERED)
     return doc
-
+#=======================================================================
 def make_annexes(source):
     doc = md.Document([md.Heading('Annexes', 1)])
     doc += md.Heading('Annex 1: README Python source', 2)
@@ -247,8 +270,8 @@ def make_annexes(source):
                    'The python file can also be found here')
     doc += md.CodeBlock(source, 'python')
     return doc
-
-def make_readme(name, pypiname, source):
+#=======================================================================
+def make(name, pypiname, source):
     # Setup for the badges
     shields_url = 'https://img.shields.io/'
 
@@ -273,24 +296,29 @@ def make_readme(name, pypiname, source):
         md.Heading('Table of Content', 3, in_TOC = False),
         md.TOC()
         ])
+    source = pathlib.Path(__file__).read_text('utf8')
     doc += make_quick_start_guide(name, pypiname, source)
-    doc += make_changelog()
+    doc += make_changelog(level = 1)
     doc += make_further_reading()
     doc += md.HRule()
     doc += make_annexes(source)
     return doc
-
+#=======================================================================
 def main():
-    name = 'YAMDOG'
-    pypiname = 'yamdog'
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        import tomli as tomllib # type: ignore
 
-    source = pathlib.Path(__file__).read_text('utf8')
+    pyproject = tomllib.loads(PATH_PYPROJECT.read_text())
+    master_info = pyproject['master-info']
+    package_name = master_info["package_name"]
+    full_name = master_info.get("full_name",
+                                package_name.replace('-', ' ').capitalize())
+    description = master_info['description']
 
-    doc = make_readme(name, pypiname, source)
-    path_readme = pathlib.Path(__file__).parent / 'README.md'
-    path_readme.write_text(str(doc), 'utf8')
-    path_readme.write_text('\n', 'utf8')
-    return doc
-
+    doc = make(full_name, package_name, description)
+    PATH_README.write_text(str(doc) + '\n')
+#=======================================================================
 if __name__ == '__main__':
     main()

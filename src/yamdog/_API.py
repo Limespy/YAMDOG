@@ -86,11 +86,14 @@ _ListDict = _partial(_defaultdict, list)
 _empty_collected = lambda: (_ListDict(), _ListDict())
 _Collected = tuple[_defaultdict, _defaultdict] # Type alias for collected items
 #═════════════════════════════════════════════════════════════════════════════
-_re_begin = _re.compile(r'^\s*\n\s*')
+_re_ends = _re.compile(r'^\s*\n\s*|\s*\n\s*$')
 _re_middle = _re.compile(r'\s*\n\s*')
-_re_end = _re.compile(r'\s*\n\s*$')
-def _sanitise_str(text: str):
-    return _re_middle.sub(' ', _re_end.sub('', _re_begin.sub('', text)))
+_translation_mdchars =  str.maketrans({c: '\\' + c for c in r'\*_~^[]`'})
+def _sanitise(text: str) -> str:
+    return _re_middle.sub(' ', _re_ends.sub('', text)
+                          ).translate(_translation_mdchars)
+def _sanitise_str(content: _Any) -> str:
+    return _sanitise(content) if isinstance(content, str) else str(content)
 #─────────────────────────────────────────────────────────────────────────────
 def _collect(item: _Any, visited: set[int], collected: _Collected
              ) -> tuple[set[int], _Collected]:
@@ -196,10 +199,7 @@ class Checkbox(ContainerElement):
         return self.checked
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        content = (_sanitise_str(self.content)
-                  if isinstance(self.content, str)
-                  else self.content)
-        return (f'[{"x" if self else " "}] {content}')
+        return (f'[{"x" if self else " "}] {_sanitise_str(self.content)}')
     #─────────────────────────────────────────────────────────────────────────
     def __add__(self, other):
         raise TypeError(f"unsupported operand type(s) for +: "
@@ -235,11 +235,12 @@ class CodeBlock(Element):
     language: _Any = ''
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        text = str(self.text) # Forces potential ` characters to be resolved
+        # Forces potential ` characters to be resolved and undoes unnecessary sanitisation
+        text = str(self.text).replace(r'\`', '`')
         mark = ('`' * (n + 1) if (tics := _re_tics.findall(text))
                                   and (n := len(max(tics))) > 2
                 else '```')
-        return f'{mark}{_sanitise_str(str(self.language))}\n{text}\n{mark}'
+        return f'{mark}{_sanitise(str(self.language))}\n{text}\n{mark}'
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Comment(Element):
@@ -421,7 +422,7 @@ def make_checklist(items: _Iterable[tuple[_Any, bool]]) -> Listing:
     -------
     Listing
         Unorderd listing containing checkboxes'''
-    return Listing((Checkbox(*item) for item in items), UNORDERED)
+    return Listing([Checkbox(*item) for item in items], UNORDERED)
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Math(InlineElement):
@@ -477,12 +478,11 @@ class Paragraph(IterableElement):
     separator: str, default ''
         separator string to be used when combining the content into string
     '''
-    content: list[_Any] = _field(default_factory = list)
+    content: list[_Any]
     separator: str = ''
     #─────────────────────────────────────────────────────────────────────────
     def __str__(self) -> str:
-        return self.separator.join(_sanitise_str(item) if isinstance(item, str)
-                                   else str(item) for item in self.content)
+        return self.separator.join(map(_sanitise_str, self.content))
     #─────────────────────────────────────────────────────────────────────────
     def __iadd__(self, other):
         if isinstance(other, InlineElement):
@@ -493,6 +493,26 @@ class Paragraph(IterableElement):
             return self
         raise TypeError(f"+= has not been implemented for Paragraph with object"
                         f" {repr(other)} type '{type(other).__name__}'")
+#═════════════════════════════════════════════════════════════════════════════
+@_dataclass(**_maybeslots)
+class PDF(Image):
+    '''PDF view using HTML
+
+    Parameters
+    ----------
+    path: Any
+        path to the pdf
+    alt_text: Any, default 'image'
+        Text that is displayed if the image cannot be shown
+    caption: Any, default None
+        Caption text under thie image
+    '''
+    #─────────────────────────────────────────────────────────────────────────
+    def __str__(self) -> str:
+        path = str(self.path)
+        image = (f'<object data="{path}" type="application/pdf">'
+                 f'<embed src="{path}"></embed></object>')
+        return image if self.caption is None else image + f'\n{self.caption}'
 #═════════════════════════════════════════════════════════════════════════════
 @_dataclass(**_maybeslots)
 class Quote(ContainerElement):
@@ -508,6 +528,18 @@ class Quote(ContainerElement):
         return '> ' + str(self.content).replace('\n', '\n> ')
 #─────────────────────────────────────────────────────────────────────────────
 QuoteBlock = Quote # some backwards compatibility
+#═════════════════════════════════════════════════════════════════════════════
+@_dataclass(**_maybeslots)
+class Raw(InlineElement):
+    '''Unsanitised text. Can be used for e.g. inserting HTML
+
+    Parameters
+    ----------
+    content: Any
+    '''
+    content: _Any
+    def __str__(self) -> str:
+        return str(self.content)
 #═════════════════════════════════════════════════════════════════════════════
 # Table
 def _pad(items: _Iterable[str],
@@ -809,7 +841,6 @@ class Text(ContainerElement, InlineElement):
         self.level = NORMAL
         return self
 #═════════════════════════════════════════════════════════════════════════════
-# TOC
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class TOC(Element):
     '''Marker where table of contents will be placed.
@@ -844,8 +875,9 @@ def _preprocess_document(content: _Iterable[_Any]
     visited: set[int] = set()
 
     for item in content:
+
         if isinstance(item, str):
-            new_content.append(_sanitise_str(item).strip())
+            new_content.append(_sanitise(item).strip())
         else:
             new_content.append(item)
             if isinstance(item, TOC):
@@ -888,12 +920,7 @@ def _process_header(language: _Any, content: _Any) -> str:
              (f';;;\n{content}\n;;;' if language == 'json' else
               f'---{language}\n{content}\n---')))
 #═════════════════════════════════════════════════════════════════════════════
-_square_bracket_translation = str.maketrans('', '', '[]')
 _punctuation_translation = str.maketrans(' ', '-', _punctuation)
-def _heading_ref_texts(text: str) -> tuple[str, str]:
-    '''Generates visible link text and internal link target'''
-    return (text.translate(_square_bracket_translation),
-            '#' + text.translate(_punctuation_translation).lower())
 #═════════════════════════════════════════════════════════════════════════════
 def _process_TOC(TOCs: dict[int, list[TOC]],
                  headings: _Iterable[Heading],
@@ -904,16 +931,18 @@ def _process_TOC(TOCs: dict[int, list[TOC]],
     TOCtexts: dict[int, list[str]] = _defaultdict(list) # {level: texts}
     TOC_maxlevel = max(TOCs.keys()) # Highest heading level to be included
     for heading in headings:
-        text, ref = _heading_ref_texts(str(heading.content))
+        content = _sanitise_str(heading.content)
+        ref = '#' + content.translate(_punctuation_translation).lower()
         refcounts[ref] += 1
 
         if heading.level > TOC_maxlevel: # Short circuit
             continue
 
         if n_duplicates := refcounts[ref]: # Handling multiple same refs
-            ref += str(n_duplicates)
+            ref += f'-{n_duplicates}'
 
-        line = f'{(heading.level - top_level) * _INDENT}- [{text}]({ref})'
+        line = (f'{(heading.level - top_level) * _INDENT}'
+                f'- [{content}]({ref})')
         for TOClevel in TOCs:
             if heading.level <= TOClevel:
                 TOCtexts[TOClevel].append(line)
@@ -936,7 +965,7 @@ class Document(IterableElement):
         Header language and text. If you want a header written in
         e.g. yaml, then ("yaml", yaml_string)
     '''
-    content: list[_Any] = _field(default_factory = list)
+    content: list[_Any]
     header: _Union[tuple[()], tuple[_Any, _Any]] = _field(
                                         default_factory = tuple) # type: ignore
     #─────────────────────────────────────────────────────────────────────────
@@ -962,7 +991,6 @@ class Document(IterableElement):
          headings,
          links,
          footnotes) = _preprocess_document(self.content)
-
         if self.header: # Making header
             content.insert(0, _process_header(*self.header))
 

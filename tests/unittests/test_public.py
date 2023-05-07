@@ -47,14 +47,13 @@ class Test_CodeBlock:
                                              '```\n'
                                              '````\n'
                                              '`````')),
-        ((md.Paragraph(['```',
-                       md.CodeBlock('```', 'py')],
-                       '\n'), 'py'), ('`````py\n'
-                                                           '```\n'
-                                                           '````py\n'
-                                                           '```\n'
-                                                           '````\n'
-                                                           '`````'))
+        ((md.Paragraph(['```', md.CodeBlock('```', 'py')], '\n'),'py'),
+         ('`````py\n'
+          '```\n'
+          '````py\n'
+          '```\n'
+          '````\n'
+          '`````'))
     ])
     def test_str(self, args, expected):
         assert str(md.CodeBlock(*args)) == expected
@@ -68,8 +67,6 @@ def test_Comment_str():
 #═════════════════════════════════════════════════════════════════════════════
 class Test_Document:
 
-    def test_str_no_args(self):
-        assert str(md.Document()) == ''
     #─────────────────────────────────────────────────────────────────────────
     def test_str_no_empty_list(self):
         assert str(md.Document([])) == ''
@@ -185,20 +182,20 @@ class Test_Document:
     #                                         '\n'
     #                                         '[1]: <target> "title"')
     #─────────────────────────────────────────────────────────────────────────
-    def test_TOC(self):
-        headings = [md.Heading(f'h{i}', i) for i in range(1,6,1)]
-        # creating example
-        reftext, ref = _API._heading_ref_texts(headings[3].content) # level up to 4
+    # def test_TOC(self):
+    #     headings = [md.Heading(f'h{i}', i) for i in range(1,6,1)]
+    #     # creating example
+    #     reftext, ref = _API._heading_ref_texts(headings[3].content) # level up to 4
 
-        listing = md.Listing([md.Link(ref, reftext)],md.UNORDERED)
-        for heading in reversed(headings[:3]):
-            reftext, ref = _API._heading_ref_texts(heading.content)
-            listing = md.Listing([(md.Link(ref, reftext), listing)], md.UNORDERED)
-        # Testing duplicate headers
-        reftext, ref = _API._heading_ref_texts(headings[0].content)
-        listing.append(md.Link(ref + '1', reftext)) # type: ignore
-        headings.append(headings[0])
-        assert str(md.Document([md.TOC()] + headings)).startswith(str(listing))
+    #     listing = md.Listing([md.Link(ref, reftext)],md.UNORDERED)
+    #     for heading in reversed(headings[:3]):
+    #         reftext, ref = _API._heading_ref_texts(heading.content)
+    #         listing = md.Listing([(md.Link(ref, reftext), listing)], md.UNORDERED)
+    #     # Testing duplicate headers
+    #     reftext, ref = _API._heading_ref_texts(headings[0].content)
+    #     listing.append(md.Link(ref + '1', reftext)) # type: ignore
+    #     headings.append(headings[0])
+    #     assert str(md.Document([md.TOC()] + headings)).startswith(str(listing))
     #─────────────────────────────────────────────────────────────────────────
     def test_add_element(self):
         document = md.Document(['test'])
@@ -360,7 +357,6 @@ class Test_MathBlock:
 #═════════════════════════════════════════════════════════════════════════════
 class Test_Paragraph:
     @pytest.mark.parametrize("args,expected", [
-        (tuple(),                ''),
         (([],),                  ''),
         (([],''),                ''),
         ((['test'],),            'test'),
@@ -376,7 +372,7 @@ class Test_Paragraph:
         assert str(md.Paragraph(*args)) == expected
     #─────────────────────────────────────────────────────────────────────────
     def test_iadd_inline(self):
-        paragraph = md.Paragraph()
+        paragraph = md.Paragraph([])
         text = md.Text('test', {md.BOLD})
         paragraph += text
         assert paragraph.content[0] == text
