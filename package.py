@@ -5,6 +5,7 @@
 import pathlib
 import re
 import sys
+import time
 
 import tomli_w
 
@@ -21,7 +22,6 @@ PATH_LICENCE = next(PATH_BASE.glob('LICENSE*'))
 PATH_README = PATH_BASE / 'README.md'
 PATH_PYPROJECT = PATH_BASE / 'pyproject.toml'
 
-
 def main(args = sys.argv[1:]):
     if '--print' in args:
         import pprint
@@ -33,15 +33,8 @@ def main(args = sys.argv[1:]):
     if not '--notests' in args or is_verbose:
         import colorama as col
         RESET = col.Style.RESET_ALL
-        BLACK = col.Fore.BLACK
-        BLUE = col.Fore.BLUE
-        CYAN = col.Fore.CYAN
         GREEN = col.Fore.GREEN
-        MAGENTA = col.Fore.MAGENTA
         RED = col.Fore.RED
-        YELLOW = col.Fore.YELLOW
-        WHITE = col.Fore.WHITE
-        WHITE_BG = col.Back.WHITE
     #%%═════════════════════════════════════════════════════════════════════
     # SETUP GLOBALS
     #%%═════════════════════════════════════════════════════════════════════
@@ -64,15 +57,6 @@ def main(args = sys.argv[1:]):
         if failed:
             raise Exception('Tests did not pass, read above')
     #%%═════════════════════════════════════════════════════════════════════
-    # SETUP FUNCTIONS
-    def header(text: str, linechar = '─', endchar = '┐', headerwidth  =  60):
-        titlewidth = headerwidth // 2
-        textlen = len(text)
-        l_len = ((titlewidth - textlen) // 2 - 1)
-        lpad = linechar*l_len
-        rpad = f'{(headerwidth - l_len - textlen - 3)*linechar}'
-        return f'{lpad} {GREEN}{text}{RESET} {rpad}{endchar}'
-    #%%═════════════════════════════════════════════════════════════════════
     # BUILD INFO
 
     # Loading the pyproject TOML file
@@ -80,16 +64,13 @@ def main(args = sys.argv[1:]):
     master_info = pyproject['master-info']
     build_info = pyproject['project']
 
-    if is_verbose:
-        print(f'\n{header("Starting packaging setup", "=", "=")}\n')
-
     VERSION = re.search(r"(?<=__version__ = ').*(?=')",
                     next((PATH_BASE / 'src').rglob('__init__.py')).read_text()
                     )[0]
 
     if '--build-number' in args:
-        master_info['build-number'] += 1
-        VERSION += f'.{master_info["build-number"]}'
+        VERSION += f'.{time.time():.0f}'
+
     build_info['version'] = VERSION
     package_name = master_info["package_name"]
     full_name = master_info.get("full_name",
@@ -117,12 +98,6 @@ def main(args = sys.argv[1:]):
         'Changelog': f'{GITHUB_MAIN_URL}{PATH_README.name}#Changelog',
         'Issue Tracker': f'{URL}/issues'}
     #%%═════════════════════════════════════════════════════════════════════
-    # PRINTING SETUP INFO
-    if is_verbose:
-        for key, value in build_info.items():
-            print(f'\n{header(key)}\n')
-            pprint.pprint(value)
-    #%%═════════════════════════════════════════════════════════════════════
     # RUNNING THE BUILD
 
     pyproject['project'] = build_info
@@ -132,15 +107,11 @@ def main(args = sys.argv[1:]):
     for path in (PATH_BASE / 'dist').glob('*'):
         path.unlink()
 
-    if is_verbose:
-        print(f'\n{header("Replacing README", "=", "=")}\n')
     PATH_README.write_text(readme_text_pypi)
-    if is_verbose:
-        print(f'\n{header("Calling build", "=", "=")}\n')
+
     if not '--no-build' in args:
         build.main([])
-    if is_verbose:
-        print(f'\n{header("Returning README", "=", "=")}\n')
+
     PATH_README.write_text(readme_text)
 
 if __name__ =='__main__':
