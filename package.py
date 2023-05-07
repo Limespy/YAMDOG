@@ -20,9 +20,7 @@ PATH_BASE = pathlib.Path(__file__).parent
 PATH_LICENCE = next(PATH_BASE.glob('LICENSE*'))
 PATH_README = PATH_BASE / 'README.md'
 PATH_PYPROJECT = PATH_BASE / 'pyproject.toml'
-VERSION = re.search(r"(?<=__version__ = ').*(?=')",
-                    next((PATH_BASE / 'src').rglob('__init__.py')).read_text()
-                    )[0]
+
 
 def main(args = sys.argv[1:]):
     if '--print' in args:
@@ -84,6 +82,10 @@ def main(args = sys.argv[1:]):
 
     if is_verbose:
         print(f'\n{header("Starting packaging setup", "=", "=")}\n')
+
+    VERSION = re.search(r"(?<=__version__ = ').*(?=')",
+                    next((PATH_BASE / 'src').rglob('__init__.py')).read_text()
+                    )[0]
 
     if '--build-number' in args:
         master_info['build-number'] += 1
