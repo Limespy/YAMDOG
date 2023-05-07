@@ -134,7 +134,7 @@ def main(args = sys.argv[1:]):
         print(f'\n{header("Calling build", "=", "=")}\n')
     if not '--no-build' in args:
         master_info['build-number'] += 1
-        build.main([f'--config-setting=--build-number={master_info["build-number"]}'])
+        build.main([f'--config-setting=--tag-build={master_info["build-number"]}'])
     if is_verbose:
         print(f'\n{header("Returning README", "=", "=")}\n')
     PATH_README.write_text(readme_text)
