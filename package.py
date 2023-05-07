@@ -48,7 +48,7 @@ def main(args = sys.argv[1:]):
     # SETUP GLOBALS
     #%%═════════════════════════════════════════════════════════════════════
     # Run tests first
-    if '--notests' in args:
+    if '--no-tests' in args:
         args.pop(args.index('--notests'))
     else:
         import tests
@@ -133,8 +133,7 @@ def main(args = sys.argv[1:]):
         print(f'\n{header("Calling build", "=", "=")}\n')
     if not '--no-build' in args:
         master_info['build-number'] += 1
-        build.main(['-C--global-option=bdist_wheel',
-                    f'-C--global-option=--build-number={master_info["build-number"]}'])
+        build.main([f'-C--config-setting=--tag-build={master_info["build-number"]}'])
     if is_verbose:
         print(f'\n{header("Returning README", "=", "=")}\n')
     PATH_README.write_text(readme_text)
