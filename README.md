@@ -122,7 +122,7 @@ heading = md.Heading('Example heading', 4)
 
 ==highlighted text==
 
-***==~~All styles combined~~==***
+*==**~~All styles combined~~**==*
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})
@@ -808,7 +808,7 @@ def main():
     try:
         import tomllib
     except ModuleNotFoundError:
-        import tomli as tomllib
+        import tomli as tomllib # type: ignore
 
     pyproject = tomllib.loads(PATH_PYPROJECT.read_text())
     master_info = pyproject['master-info']
@@ -817,7 +817,7 @@ def main():
                                 package_name.replace('-', ' ').capitalize())
     description = master_info['description']
 
-    doc = make_readme(full_name, package_name, description)
+    doc = make(full_name, package_name, description)
     PATH_README.write_text(str(doc) + '\n')
 #=======================================================================
 if __name__ == '__main__':
