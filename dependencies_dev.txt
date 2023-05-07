@@ -1,8 +1,17 @@
+
+build >= 0.10.0
 colorama >= 0.4
-mypy==0.991
+Markdown >= 3.4.3
+mypy >= 1.2.0
+pre-commit >= 3.2.2
+pydantic >= 1.10.7
+pylint >= 2.17.3
+pympler >= 1.0.1
 pytest >=7.2.0
 pytest-cov >= 4.0.0
-snakemd
+reorder-python-imports >= 3.9.0
+snakemd >= 2.1.0
 tomli-w >= 1.0.0
 twine >= 4.0
+tox >= 4.5.1
 wheel >= 0.38

@@ -32,8 +32,7 @@ YAMDOG is toolkit for creating Markdown text using Python. Markdown is a light a
             - [Address](#address)
             - [Quote block](#quote-block)
         - [Combining elements into a document](#combining-elements-into-a-document)
-            - [Example heading](#example-heading1)
-- [Changelog](#changelog)
+            - [Example heading](#example-heading-1)
 - [Further reading](#further-reading)
 - [Annexes](#annexes)
     - [Annex 1: README Python source](#annex-1-readme-python-source)
@@ -92,7 +91,7 @@ markdown_source = str(document)
 Let's start with an empty document
 
 ```python
-document = md.Document()
+document = md.Document([])
 ```
 
 #### Heading
@@ -100,7 +99,7 @@ document = md.Document()
 *Python source*
 
 ```python
-heading = md.Heading(4, 'Example heading')
+heading = md.Heading('Example heading', 4)
 ```
 
 *Markdown source*
@@ -123,7 +122,7 @@ heading = md.Heading(4, 'Example heading')
 
 ==highlighted text==
 
-==*~~**All styles combined**~~*==
+~~***==All styles combined==***~~
 
 ```python
 bold_text = md.Text('bolded text', {md.BOLD})
@@ -163,9 +162,9 @@ Example paragraph containing **bolded text**
 *Python source*
 
 ```python
-table = md.Table(['First column', 'Second column', 'Third column'],
-                 [['a', 1, 'Python'],
+table = md.Table([['a', 1, 'Python'],
                   ['b', 2, 'Markdown']],
+                 ['First column', 'Second column', 'Third column'],
                  [md.RIGHT, md.LEFT, md.CENTER])
 ```
 
@@ -194,9 +193,9 @@ You can select compact mode at the table object creation
 *Python source*
 
 ```python
-table = md.Table(['First column', 'Second column', 'Third column'],
-                 [['a', 1, 'Python'],
+table = md.Table([['a', 1, 'Python'],
                   ['b', 2, 'Markdown']],
+                 ['First column', 'Second column', 'Third column'],
                  [md.RIGHT, md.LEFT, md.CENTER],
                  True)
 ```
@@ -230,14 +229,13 @@ table.compact = True
 *Python source*
 
 ```python
-listing = md.Listing(md.UNORDERED, 
-                     ['Just normal text',
+listing = md.Listing(['Just normal text',
                       md.Text('some stylised text', {md.ITALIC}),
-                      md.Checkbox(False, 'Listings can include checkboxes'),
-                      md.Checkbox(True, 'Checked and unchecked option available'),
+                      md.Checkbox('Listings can include checkboxes', False),
+                      md.Checkbox('Checked and unchecked option available', True),
                       ('Sublist by using a tuple',
-                        md.Listing(md.ORDERED,
-                                  ['first', 'second']))])
+                        md.Listing(['first', 'second'], md.ORDERED))],
+                      md.UNORDERED)
 ```
 
 *Markdown source*
@@ -269,20 +267,24 @@ listing = md.Listing(md.UNORDERED,
 *Python source*
 
 ```python
-checklist = md.make_checklist([(False, 'unchecked box'),
-                               (True, 'checked box'),
-                               (True, 'done')])
+checklist = md.make_checklist([('unchecked box', False),
+                               ('checked box', True),
+                               ('done', True)])
 ```
 
 *Markdown source*
 
 ```markdown
-
+- [ ] unchecked box
+- [x] checked box
+- [x] done
 ```
 
 *Rendered result*
 
-
+- [ ] unchecked box
+- [x] checked box
+- [x] done
 
 ---
 
@@ -291,7 +293,7 @@ checklist = md.make_checklist([(False, 'unchecked box'),
 *Python source*
 
 ```python
-link = md.Link('Link to Markdown Guide', 'https://www.markdownguide.org')
+link = md.Link('https://www.markdownguide.org', 'Link to Markdown Guide')
 ```
 
 *Markdown source*
@@ -311,7 +313,7 @@ link = md.Link('Link to Markdown Guide', 'https://www.markdownguide.org')
 *Python source*
 
 ```python
-codeblock = md.CodeBlock('import yamdog as md\n\ndoc = md.Document()',
+codeblock = md.CodeBlock('import yamdog as md\n\ndoc = md.Document([])',
                          'python')
 ```
 
@@ -321,7 +323,7 @@ codeblock = md.CodeBlock('import yamdog as md\n\ndoc = md.Document()',
 ```python
 import yamdog as md
 
-doc = md.Document()
+doc = md.Document([])
 ```
 ````
 
@@ -330,7 +332,7 @@ doc = md.Document()
 ```python
 import yamdog as md
 
-doc = md.Document()
+doc = md.Document([])
 ```
 
 ---
@@ -360,7 +362,7 @@ code = md.Code('python != markdown')
 *Python source*
 
 ```python
-address = md.Address('https://www.markdownguide.org')
+address = md.Link('https://www.markdownguide.org')
 ```
 
 *Markdown source*
@@ -380,7 +382,7 @@ address = md.Address('https://www.markdownguide.org')
 *Python source*
 
 ```python
-quoteblock = md.QuoteBlock('Quote block supports\nmultiple lines')
+quoteblock = md.Quote('Quote block supports\nmultiple lines')
 ```
 
 *Markdown source*
@@ -408,7 +410,7 @@ document = md.Document([heading, link, paragraph, listing])
 adding elements into a document
 
 ```python
-document = md.Document()
+document = md.Document([])
 document += heading
 document += link
 document += paragraph
@@ -463,7 +465,12 @@ Example paragraph containing **bolded text**
     1. first
     2. second
 
-# Changelog
+# Changelog <!-- omit in toc -->
+
+## 0.5.0 2023-05-07 <!-- omit in toc -->
+
+- Some API changes
+- Added Raw, PDF, Comment
 
 ## 0.4.0 2023-01-23 <!-- omit in toc -->
 
@@ -477,8 +484,8 @@ Example paragraph containing **bolded text**
 
 # Further reading
 
-- [basic syntax][2]
-- [extended syntax][2]
+- [basic syntax guide][2]
+- [extended syntax guide][2]
 
 ---
 
@@ -491,11 +498,18 @@ And here the full source code that wrote this README. This can serve as a more a
 [The python file can also be found here](https://github.com/Limespy/YAMDOG/blob/main/readme.py)
 
 ```python
-import yamdog as md
-
+import datetime
 import pathlib
 import re
 
+import yamdog as md
+
+PATH_BASE = pathlib.Path(__file__).parent
+PATH_README = PATH_BASE / 'README.md'
+PATH_CHANGELOG = PATH_BASE / '.changelog.md'
+PATH_PYPROJECT = PATH_BASE / 'pyproject.toml'
+VERSION = md.__version__
+#=======================================================================
 def make_examples(source: str) -> md.Document:
     '''Examples are collected via source code introspection'''
     # First getting the example code blocks
@@ -507,7 +521,7 @@ def make_examples(source: str) -> md.Document:
         examples[name.strip()] = md.CodeBlock(code, 'python')
 
     def get_example(title: str, element: md.Element) -> md.Document:
-        return md.Document([md.Heading(4, title.capitalize()),
+        return md.Document([md.Heading(title.capitalize(), 4),
                             md.Text('Python source', {md.ITALIC}),
                             examples[title],
                             md.Text('Markdown source', {md.ITALIC}),
@@ -518,21 +532,21 @@ def make_examples(source: str) -> md.Document:
 
     # Starting the actual doc
     doc = md.Document([
-        md.Heading(3, 'Making elements'),
+        md.Heading('Making elements', 3),
 
     ])
 
     #%% document
-    document = md.Document()
+    document = md.Document([])
 
     doc += "Let's start with an empty document"
     doc += examples['document']
 
     #%% adding to document
-    # document += 
+    # document +=
 
     #%% heading
-    heading = md.Heading(4, 'Example heading')
+    heading = md.Heading('Example heading', 4)
 
     doc += get_example('heading', heading)
 
@@ -560,17 +574,17 @@ def make_examples(source: str) -> md.Document:
     doc += get_example('paragraph', paragraph)
 
     #%% table
-    table = md.Table(['First column', 'Second column', 'Third column'],
-                     [['a', 1, 'Python'],
+    table = md.Table([['a', 1, 'Python'],
                       ['b', 2, 'Markdown']],
+                     ['First column', 'Second column', 'Third column'],
                      [md.RIGHT, md.LEFT, md.CENTER])
 
     doc += get_example('table', table)
 
     #%% compact table
-    table = md.Table(['First column', 'Second column', 'Third column'],
-                     [['a', 1, 'Python'],
+    table = md.Table([['a', 1, 'Python'],
                       ['b', 2, 'Markdown']],
+                     ['First column', 'Second column', 'Third column'],
                      [md.RIGHT, md.LEFT, md.CENTER],
                      True)
 
@@ -585,30 +599,29 @@ def make_examples(source: str) -> md.Document:
     doc += examples['table compact attribute']
 
     #%% listing
-    listing = md.Listing(md.UNORDERED, 
-                         ['Just normal text',
+    listing = md.Listing(['Just normal text',
                           md.Text('some stylised text', {md.ITALIC}),
-                          md.Checkbox(False, 'Listings can include checkboxes'),
-                          md.Checkbox(True, 'Checked and unchecked option available'),
+                          md.Checkbox('Listings can include checkboxes', False),
+                          md.Checkbox('Checked and unchecked option available', True),
                           ('Sublist by using a tuple',
-                            md.Listing(md.ORDERED,
-                                      ['first', 'second']))])
+                            md.Listing(['first', 'second'], md.ORDERED))],
+                          md.UNORDERED)
 
     doc += get_example('listing', listing)
 
     #%% checklist
-    checklist = md.make_checklist([(False, 'unchecked box'),
-                                   (True, 'checked box'),
-                                   (True, 'done')])
+    checklist = md.make_checklist([('unchecked box', False),
+                                   ('checked box', True),
+                                   ('done', True)])
 
     doc += get_example('checklist', checklist)
     #%% link
-    link = md.Link('Link to Markdown Guide', 'https://www.markdownguide.org')
+    link = md.Link('https://www.markdownguide.org', 'Link to Markdown Guide')
 
     doc += get_example('link', link)
 
     #%% codeblock
-    codeblock = md.CodeBlock('import yamdog as md\n\ndoc = md.Document()',
+    codeblock = md.CodeBlock('import yamdog as md\n\ndoc = md.Document([])',
                              'python')
 
     doc += get_example('codeblock', codeblock)
@@ -622,16 +635,16 @@ def make_examples(source: str) -> md.Document:
     # image = md.Image()
 
     #%% address
-    address = md.Address('https://www.markdownguide.org')
+    address = md.Link('https://www.markdownguide.org')
 
     doc += get_example('address', address)
 
     #%% quote block
-    quoteblock = md.QuoteBlock('Quote block supports\nmultiple lines')
+    quoteblock = md.Quote('Quote block supports\nmultiple lines')
 
     doc += get_example('quote block', quoteblock)
 
-    doc += md.Heading(3, 'Combining elements into a document')
+    doc += md.Heading('Combining elements into a document', 3)
 
     #%% calling document
     document = md.Document([heading, link, paragraph, listing])
@@ -640,7 +653,7 @@ def make_examples(source: str) -> md.Document:
     doc += examples['calling document']
 
     #%% from empty document
-    document = md.Document()
+    document = md.Document([])
     document += heading
     document += link
     document += paragraph
@@ -669,28 +682,28 @@ def make_examples(source: str) -> md.Document:
     doc += document
 
     return doc
-
+#=======================================================================
 def make_quick_start_guide(name, pypiname, source):
     doc = md.Document([
-        md.Heading(1, 'Quick start guide'),
+        md.Heading('Quick start guide', 1),
         "Here's how you can start automatically generating Markdown documents",
-        md.Heading(2, 'The first steps'),
+        md.Heading('The first steps', 2),
         '',
-        md.Heading(3, 'Install'),
+        md.Heading('Install', 3),
         f'''Install {name} with pip.
         {name} uses only Python standard library so it has no additional dependencies.''',
         md.CodeBlock(f'pip install {pypiname}'),
-        md.Heading(3, 'Import'),
+        md.Heading('Import', 3),
         f'''Import name is the same as install name, {pypiname}.''',
         md.CodeBlock(f'import {pypiname}', 'python'),
         md.Paragraph(['Since the package is accessed often, I use abbreviation',
-                      md.Code('md'), 
+                      md.Code('md'),
                       ' for MarkDown. The abbreviation is used throughout this document.']),
         md.CodeBlock(f'import {pypiname} as md', 'python'),
-        md.Heading(2, 'Using the package'),
+        md.Heading('Using the package', 2),
         f'There are two main things to building a Markdown document using {name}',
-        md.Listing(md.ORDERED, ['Making elements',
-                               'Combining elements into a document']),
+        md.Listing(['Making elements',
+                    'Combining elements into a document'], md.ORDERED),
         md.Paragraph(['You can call ',
             md.Code('str'),
             ' on the element directly to get the markdown source']),
@@ -701,47 +714,64 @@ def make_quick_start_guide(name, pypiname, source):
         ])
     doc += make_examples(source)
     return doc
+#=======================================================================
+re_heading = re.compile(r'^#* .*$')
 
+def parse_md_element(text: str):
+    if match := re_heading.match(text):
+        hashes, content = match[0].split(' ', 1)
+        return md.Heading(content, len(hashes))
+    else:
+        return md.Raw(text)
+#-----------------------------------------------------------------------
+def parse_md(text: str):
+    return md.Document([parse_md_element(item.strip())
+                        for item in text.split('\n\n')])
+#-----------------------------------------------------------------------
+def make_changelog(level: int):
+    doc = md.Document([md.Heading('Changelog', level, in_TOC = False)])
+    changelog = parse_md(PATH_CHANGELOG.read_text())
+    if changelog:
+        if (latest := changelog.content[0]).content.split(' ', 1)[0] == VERSION:
+            latest.content = f'{VERSION} {datetime.date.today().isoformat()}'
+        else:
+            raise ValueError('Changelog not up to date')
 
-def make_changelog():
-    doc = md.Document([md.Heading(1, 'Changelog')])
+        PATH_CHANGELOG.write_text(str(changelog) + '\n')
 
-    changelog = (('0.4.0', '2023-01-23', ['Much better type validation',
-                                          'Some comparisons']),
-                 ('0.3.1', '2023-01-23', ['Preliminary type validation',
-                                          'Full test coverage'])
-                 )
+        for item in changelog:
+            if isinstance(item, md.Heading):
+                item.level = level + 1
+                item.in_TOC = False
 
-    for version, date, changes in changelog:
-        doc += md.Heading(2, f'{version} {date}', in_TOC = False)
-        doc += md.Listing(md.UNORDERED, changes)
+        doc += changelog
 
     return doc
-
+#=======================================================================
 def make_further_reading():
-    basic_syntax_link = md.Link('basic syntax',
-                                'https://www.markdownguide.org/basic-syntax/',
+    basic_syntax_link = md.Link('https://www.markdownguide.org/basic-syntax/',
+                                'basic syntax guide',
                                 '')
-    extended_syntax_link = md.Link('extended syntax',
-                                  'https://www.markdownguide.org/basic-syntax/',
+    extended_syntax_link = md.Link('https://www.markdownguide.org/basic-syntax/',
+                                   'extended syntax guide',
                                    '')
 
-    doc = md.Document([md.Heading(1, 'Further reading')])
-    doc += md.Listing(md.UNORDERED, [basic_syntax_link, extended_syntax_link])
+    doc = md.Document([md.Heading('Further reading', 1)])
+    doc += md.Listing([basic_syntax_link, extended_syntax_link], md.UNORDERED)
     return doc
-
+#=======================================================================
 def make_annexes(source):
-    doc = md.Document([md.Heading(1, 'Annexes')])
-    doc += md.Heading(2, 'Annex 1: README Python source')
+    doc = md.Document([md.Heading('Annexes', 1)])
+    doc += md.Heading('Annex 1: README Python source', 2)
     doc += '''And here the full source code that wrote this README.
             This can serve as a more advanced example of what this is
             capable of.'''
-    doc += md.Link('The python file can also be found here',
-                   'https://github.com/Limespy/YAMDOG/blob/main/readme.py')
+    doc += md.Link('https://github.com/Limespy/YAMDOG/blob/main/readme.py',
+                   'The python file can also be found here')
     doc += md.CodeBlock(source, 'python')
     return doc
-
-def make_readme(name, pypiname, source):
+#=======================================================================
+def make(name, pypiname, source):
     # Setup for the badges
     shields_url = 'https://img.shields.io/'
 
@@ -750,41 +780,49 @@ def make_readme(name, pypiname, source):
                        ('wheel', 'PyPI Wheel'),
                        ('pyversions', 'Supported versions'),
                        ('implementation', 'Supported implementations'))
-    pypi_badges = [md.Link(md.Image(f'{shields_url}pypi/{code}/{pypiname}.svg',
-                                    desc), pypi_project_url, '')
+    pypi_badges = [md.Link(pypi_project_url,
+                           md.Image(f'{shields_url}pypi/{code}/{pypiname}.svg',
+                                    desc), '')
                    for code, desc in pypi_badge_info]
 
     # Starting the document
     doc = md.Document([
-        md.Heading(1, f'Overview of {name}', in_TOC = False),
+        md.Heading(f'Overview of {name}', 1, in_TOC = False),
         md.Paragraph(pypi_badges, '\n'),
         'Yet Another Markdown Only Generator',
-        md.Heading(2, f'What is {name}?', in_TOC = False),
+        md.Heading(f'What is {name}?', 2, in_TOC = False),
         f'''{name} is toolkit for creating Markdown text using Python.
         Markdown is a light and relatively simple markup language.''',
-        md.Heading(3, 'Table of Content', in_TOC = False),
+        md.Heading('Table of Content', 3, in_TOC = False),
         md.TOC()
         ])
+    source = pathlib.Path(__file__).read_text('utf8')
     doc += make_quick_start_guide(name, pypiname, source)
-    doc += make_changelog()
+    doc += make_changelog(level = 1)
     doc += make_further_reading()
     doc += md.HRule()
     doc += make_annexes(source)
     return doc
-
+#=======================================================================
 def main():
-    name = 'YAMDOG'
-    pypiname = 'yamdog'
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        import tomli as tomllib # type: ignore
 
-    source = pathlib.Path(__file__).read_text('utf8')
+    pyproject = tomllib.loads(PATH_PYPROJECT.read_text())
+    master_info = pyproject['master-info']
+    package_name = master_info["package_name"]
+    full_name = master_info.get("full_name",
+                                package_name.replace('-', ' ').capitalize())
+    description = master_info['description']
 
-    doc = make_readme(name, pypiname, source)
-
-    (pathlib.Path(__file__).parent / 'README.md').write_text(str(doc), 'utf8')
-    return doc
-
+    doc = make(full_name, package_name, description)
+    PATH_README.write_text(str(doc) + '\n')
+#=======================================================================
 if __name__ == '__main__':
     main()
+
 ```
 
 [1]: <https://pypi.org/project/yamdog> ""
