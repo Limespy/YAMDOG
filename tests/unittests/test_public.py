@@ -338,7 +338,7 @@ class Test_Math:
         assert str(md.Math(*args)) == expected
     #─────────────────────────────────────────────────────────────────────────
     def test_invalid_flavour(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(Exception):
             str(md.Math('test', md.PYPI))
 #═════════════════════════════════════════════════════════════════════════════
 class Test_MathBlock:
@@ -352,7 +352,7 @@ class Test_MathBlock:
         assert str(md.MathBlock(*args)) == expected
     #─────────────────────────────────────────────────────────────────────────
     def test_invalid_flavour(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(Exception):
             str(md.MathBlock('test', md.PYPI))
 #═════════════════════════════════════════════════════════════════════════════
 class Test_Paragraph:

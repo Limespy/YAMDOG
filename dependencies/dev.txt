@@ -1,6 +1,7 @@
 
 build >= 0.10.0
 colorama >= 0.4
+limedev >= 0.1.0[readme,test]
 Markdown >= 3.4.3
 mypy >= 1.2.0
 pre-commit >= 3.2.2

@@ -1,13 +1,15 @@
 """API module
 
 Handles"""
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 # IMPORT
 import csv as _csv
 import itertools as _itertools
 import pathlib as _pathlib
 import re as _re
 import sys as _sys
+from abc import ABC as _ABC
+from abc import abstractmethod as _abstractmethod
 from collections import defaultdict as _defaultdict
 from collections.abc import Collection as _Collection
 from collections.abc import Iterable as _Iterable
@@ -18,6 +20,7 @@ from io import IOBase as _IOBase
 from string import punctuation as _punctuation
 from typing import Any as _Any
 from typing import Callable as _Callable
+from typing import ClassVar as _ClassVar
 from typing import Generator as _Generator
 from typing import Optional as _Optional
 from typing import TextIO as _TextIO
@@ -25,24 +28,14 @@ from typing import Union as _Union
 
 from .dataclass_validate import dataclass as _dataclass
 from .dataclass_validate import field as _field
-#═════════════════════════════════════════════════════════════════════════════
+from .dataclass_validate import InitVar as _InitVar
+#=======================================================================
 # AUXILIARIES
 # To skip using slots on python 3.9
 _maybeslots = {} if _sys.version_info[1] <= 9 else {'slots': True}
-#─────────────────────────────────────────────────────────────────────────────
+#-----------------------------------------------------------------------
 _INDENT = ' ' * 4
-#─────────────────────────────────────────────────────────────────────────────
-class Align(_Enum):
-    '''Alingment codes used by Table'''
-    # _EnumDict __setitem__ detect lambdas as descriptors,
-    # because they have __get__ attribute,
-    # so they need to wrapped with a functools.partial
-    LEFT = _partial(lambda width: f':{(width - 1) * "-"}')
-    CENTER = _partial(lambda width: f':{"-" * (width - 2)}:')
-    RIGHT = _partial(lambda width: f'{(width - 1) * "-"}:')
-
-LEFT, CENTER, RIGHT = Align
-#─────────────────────────────────────────────────────────────────────────────
+#-----------------------------------------------------------------------
 class Flavour(_Enum):
     '''Variations of the Markdown syntax'''
     BASIC = 1
@@ -52,40 +45,13 @@ class Flavour(_Enum):
     PYPI = 5
 
 BASIC, EXTENDED, GITHUB, GITLAB, PYPI = Flavour
-#─────────────────────────────────────────────────────────────────────────────
-class ListingStyle(_Enum):
-    '''Styles of listing'''
-                # prefixes, prefix_length
-    ORDERED = _partial(lambda : (f'{n}. ' for n in _itertools.count(1, 1)))
-    UNORDERED = _partial(_itertools.repeat, '- ')
-    DEFINITION = _partial(_itertools.repeat, ': ')
-
-ORDERED, UNORDERED, DEFINITION = ListingStyle
-#─────────────────────────────────────────────────────────────────────────────
-class TextLevel(_Enum):
-    '''Text "scipt" levels'''
-    SUBSCRIPT = '~'
-    NORMAL = ''
-    SUPERSCRIPT = '^'
-
-SUBSCRIPT, NORMAL, SUPERSCRIPT = TextLevel
-#─────────────────────────────────────────────────────────────────────────────
-class TextStyle(_Enum):
-    '''Text styling options'''
-    BOLD = '**', '**'
-    ITALIC = '*', '*'
-    STRIKETHROUGH = '~~', '~~'
-    HIGHLIGHT = '==', '=='
-    UNDERLINE = '<ins>', '</ins>'
-
-BOLD, ITALIC, STRIKETHROUGH, HIGHLIGHT, UNDERLINE = TextStyle
-#─────────────────────────────────────────────────────────────────────────────
+#-----------------------------------------------------------------------
 INDENT = '&nbsp;&nbsp;&nbsp;&nbsp;'
-#─────────────────────────────────────────────────────────────────────────────
+#-----------------------------------------------------------------------
 _ListDict = _partial(_defaultdict, list)
 _empty_collected = lambda: (_ListDict(), _ListDict())
 _Collected = tuple[_defaultdict, _defaultdict] # Type alias for collected items
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 _re_ends = _re.compile(r'^\s*\n\s*|\s*\n\s*$')
 _re_middle = _re.compile(r'\s*\n\s*')
 _translation_mdchars =  str.maketrans({c: '\\' + c for c in r'\*_~^[]`'})
@@ -94,7 +60,7 @@ def _sanitise(text: str) -> str:
                           ).translate(_translation_mdchars)
 def _sanitise_str(content: _Any) -> str:
     return _sanitise(content) if isinstance(content, str) else str(content)
-#─────────────────────────────────────────────────────────────────────────────
+#-----------------------------------------------------------------------
 def _collect(item: _Any, visited: set[int], collected: _Collected
              ) -> tuple[set[int], _Collected]:
     '''Checks if item has collectibles and it has not been visited yet
@@ -113,8 +79,7 @@ def _collect(item: _Any, visited: set[int], collected: _Collected
     tuple[set[int], _Collected]
         updated visisted and collected
     '''
-    if (hasattr(item, '_collect')
-        and isinstance(item, Element)
+    if (isinstance(item, CollectableElement)
         and (item_id := id(item)) not in visited):
         visited.add(item_id)
         visited, new_collected = item._collect(visited) # type: ignore
@@ -122,7 +87,7 @@ def _collect(item: _Any, visited: set[int], collected: _Collected
             for key, sublist in new.items():
                 old[key].extend(sublist)
     return visited, collected
-#─────────────────────────────────────────────────────────────────────────────
+#-----------------------------------------------------------------------
 def _collect_iter(items: _Iterable, visited: set[int], collected: _Collected
                   ) -> tuple[set[int], _Collected]:
     '''Doing ordered set union thing
@@ -142,45 +107,84 @@ def _collect_iter(items: _Iterable, visited: set[int], collected: _Collected
     for item in items:
         visited, collected = _collect(item, visited, collected)
     return visited, collected
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 # ELEMENTS BASE CLASSES
 @_dataclass(**_maybeslots)
 class Element:
     '''Base class for all YAMDOG elements'''
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __add__(self, other):
         return Document([self, other]) # type: ignore
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
+@_dataclass(validate = True, **_maybeslots) # type: ignore
+class StrWrapElement(Element):
+    '''Str is by wrapping with prefix and suffix
+    '''
+    text: _Any
+    _markup: _ClassVar[tuple[_Any, _Any]] = ('', '')
+    #-------------------------------------------------------------------
+    def __str__(self) -> str:
+        return f'{self._markup[0]}{self.text}{self._markup[1]}'
+#=======================================================================
+@_dataclass(validate = True, **_maybeslots) # type: ignore
+class FlavouredStrWrapElement(Element):
+    '''Str wrap where wrapping is based on markup flavour
+    '''
+    text: _Any
+    flavour: Flavour = GITHUB
+    _markup: _ClassVar = {}
+    #-------------------------------------------------------------------
+    def __str__(self) -> str:
+        left, right = self._markup[self.flavour]
+        return f'{left}{self.text}{right}'
+#=======================================================================
 @_dataclass(**_maybeslots)
-class ContainerElement(Element):
+class CollectableElement(Element, _ABC):
+    """A base class for all collectable elements"""
+    ...
+    @_abstractmethod
+    def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
+        ...
+#=======================================================================
+
+@_dataclass(**_maybeslots)
+class ContainerElement(CollectableElement):
     '''Base class for elements with content that may be other elements'''
     content: _Any
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __bool__(self) -> bool:
         return bool(self.content)
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __getattr__(self, attr: str) -> _Any:
         return getattr(self.content, attr)
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
         return _collect(self.content, visited, _empty_collected())
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 @_dataclass(**_maybeslots)
 class IterableElement(ContainerElement):
     '''Base class for elements that have iterable content'''
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
         return _collect_iter(self.content, visited, _empty_collected())
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __iter__(self):
         return iter(self.content)
-#═════════════════════════════════════════════════════════════════════════════
-@_dataclass
+#=======================================================================
+@_dataclass(**_maybeslots)
 class InlineElement(Element):
     """A marker class to whether element can be treated as inline"""
     ...
-#═════════════════════════════════════════════════════════════════════════════
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
+@_dataclass(**_maybeslots)
+class GroupElement(CollectableElement):
+    """A marker class to whether element can be treated as inline"""
+    ...
+    @_abstractmethod
+    def _flatten(self) -> _Generator[_Any, None, None]:
+        ...
+#=======================================================================
+#=======================================================================
 # Checkbox
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Checkbox(ContainerElement):
@@ -194,19 +198,19 @@ class Checkbox(ContainerElement):
         Whether the checkbox is checked or not
     '''
     checked: bool = False
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __bool__(self) -> bool:
         return self.checked
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         return (f'[{"x" if self else " "}] {_sanitise_str(self.content)}')
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __add__(self, other):
         raise TypeError(f"unsupported operand type(s) for +: "
                         f"'{type(self).__name__}' and '{type(other).__name__}'")
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 @_dataclass(**_maybeslots)
-class Code(InlineElement):
+class Code(StrWrapElement, InlineElement):
     '''Inline monospace text
 
     Parameters
@@ -214,11 +218,8 @@ class Code(InlineElement):
     text: Any
         Content to be turned into inline monospace text
     '''
-    text: _Any
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self) -> str:
-        return f'`{self.text}`'
-#─────────────────────────────────────────────────────────────────────────────
+    _markup: _ClassVar[tuple[_Any, _Any]] = ('`', '`')
+#-----------------------------------------------------------------------
 _re_tics = _re.compile(r'(?:`)+')
 @_dataclass(**_maybeslots)
 class CodeBlock(Element):
@@ -233,7 +234,7 @@ class CodeBlock(Element):
     '''
     text: _Any
     language: _Any = ''
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         # Forces potential ` characters to be resolved and undoes unnecessary sanitisation
         text = str(self.text).replace(r'\`', '`')
@@ -241,9 +242,9 @@ class CodeBlock(Element):
                                   and (n := len(max(tics))) > 2
                 else '```')
         return f'{mark}{_sanitise(str(self.language))}\n{text}\n{mark}'
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 @_dataclass(**_maybeslots)
-class Comment(Element):
+class Comment(StrWrapElement):
     '''Text visible only in the markdown text and not HTML generated from it.
 
     Parameters
@@ -251,25 +252,19 @@ class Comment(Element):
     text: Any
         Contents of the comment
     '''
-    text: _Any
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self) -> str:
-        return f'[{self.text}]::'
-#═════════════════════════════════════════════════════════════════════════════
+    _markup: _ClassVar[tuple[_Any, _Any]] = ('[', ']::')
+#=======================================================================
 @_dataclass(**_maybeslots)
-class Emoji(InlineElement):
+class Emoji(StrWrapElement, InlineElement):
     '''https://www.webfx.com/tools/emoji-cheat-sheet/
 
     Parameters
     ----------
-    code: Any
+    text: Any
         Code for the emoji
     '''
-    code: _Any
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self) -> str:
-        return f':{self.code}:'
-#═════════════════════════════════════════════════════════════════════════════
+    _markup: _ClassVar[tuple[_Any, _Any]] = (':', ':')
+#=======================================================================
 # Footnote
 @_dataclass(**_maybeslots)
 class Footnote(ContainerElement, InlineElement):
@@ -281,14 +276,14 @@ class Footnote(ContainerElement, InlineElement):
         Content to be displayed as the note text
     '''
     _index: int = _field(init = False, default = 0)
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
         return _collect(self.content, visited,
                         (_ListDict(), _ListDict({str(self.content): [self]})))
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         return f'[^{self._index}]'
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 # Heading
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Heading(ContainerElement):
@@ -312,12 +307,12 @@ class Heading(ContainerElement):
     '''
     level: int
     in_TOC: bool = True
-    alt_style: bool = False # Underline ----- instead of #
-    #─────────────────────────────────────────────────────────────────────────
+    alt_style: bool = False
+    #-------------------------------------------------------------------
     def __post_init__(self) -> None:
         if self.level < 1 or self.level > 6:
             raise ValueError(f'Level must be greater that 0, not {self.level}')
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         text = str(self.content)
         toccomment = '' if self.in_TOC else ' <!-- omit in toc -->'
@@ -326,13 +321,13 @@ class Heading(ContainerElement):
             return (text + toccomment +'\n'
                     + ('=' if self.level == 1 else '-') * len(text))
         return self.level * "#" + ' ' + text + toccomment
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 @_dataclass(**_maybeslots)
 class HRule(Element):
     '''Simple a horizontal line'''
     def __str__(self) -> str:
         return '---'
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 @_dataclass(**_maybeslots)
 class Image(Element):
     '''
@@ -347,13 +342,13 @@ class Image(Element):
     path: _Any
     alt_text: _Any = 'image'
     caption: _Any = None
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         return (f'![{self.alt_text}]({self.path})' if self.caption is None else
                 f'![{self.alt_text}]({self.path})\n{self.caption}')
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 @_dataclass(**_maybeslots)
-class Link(InlineElement):
+class Link(InlineElement, CollectableElement):
     '''Link with to a target. Can be a reference in a document
 
     Parameters
@@ -369,17 +364,26 @@ class Link(InlineElement):
     content: _Any = None
     title: _Any = None
     _index: int = _field(init = False, default = 0)
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
         link = (_ListDict() if self.title is None
                 else _ListDict({(str(self.target), str(self.title)): [self]}))
         return _collect(self.content, visited, (link, _ListDict()))
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         return (f'<{self.target}>' if self.content is None else
                 (f'[{self.content}][{self._index}]' if self._index else
                  f'[{self.content}]({self.target})'))
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
+class ListingStyle(_Enum):
+    '''Styles of listing'''
+                # prefixes, prefix_length
+    ORDERED = _partial(lambda : (f'{n}. ' for n in _itertools.count(1, 1)))
+    UNORDERED = _partial(_itertools.repeat, '- ')
+    DEFINITION = _partial(_itertools.repeat, ': ')
+
+ORDERED, UNORDERED, DEFINITION = ListingStyle
+#-----------------------------------------------------------------------
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Listing(IterableElement):
     '''List of items
@@ -393,10 +397,10 @@ class Listing(IterableElement):
     '''
     content: _Iterable[_Any]
     style: ListingStyle = UNORDERED
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __getattr__(self, attr: str) -> _Any:
         return getattr(self.content, attr)
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         output = []
         for item, prefix in zip(self.content, self.style.value()):
@@ -410,7 +414,7 @@ class Listing(IterableElement):
                 output.append(prefix
                               + str(item).replace('\n', '\n'+ ' '* len(prefix)))
         return '\n'.join(output)
-#─────────────────────────────────────────────────────────────────────────────
+#-----------------------------------------------------------------------
 def make_checklist(items: _Iterable[tuple[_Any, bool]]) -> Listing:
     '''Assembles a Listing of checkboxes from iterable
 
@@ -423,9 +427,9 @@ def make_checklist(items: _Iterable[tuple[_Any, bool]]) -> Listing:
     Listing
         Unorderd listing containing checkboxes'''
     return Listing([Checkbox(*item) for item in items], UNORDERED)
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 @_dataclass(validate = True, **_maybeslots) # type: ignore
-class Math(InlineElement):
+class Math(FlavouredStrWrapElement, InlineElement):
     '''Inline KaTeX math notation
 
     Parameters
@@ -435,18 +439,11 @@ class Math(InlineElement):
     flavour: Flavour, default GITHUB
         Markdown flavour to be be used
     '''
-    text: _Any
-    flavour: Flavour = GITHUB
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self) -> str:
-        if self.flavour == GITHUB:
-            return f'${self.text}$'
-        if self.flavour == GITLAB:
-            return f'$`{self.text}`$'
-        raise ValueError(f'Flavour {self.flavour} not recognised')
-#═════════════════════════════════════════════════════════════════════════════
+    _markup: _ClassVar = {GITHUB: ('$', '$'),
+                          GITLAB: ('$`', '`$')}
+#=======================================================================
 @_dataclass(validate = True, **_maybeslots) # type: ignore
-class MathBlock(Element):
+class MathBlock(FlavouredStrWrapElement):
     '''KaTeX math notation in a block
 
     Parameters
@@ -456,16 +453,9 @@ class MathBlock(Element):
     flavour: Flavour, default GITHUB
         Markdown flavour to be be used
     '''
-    text: _Any
-    flavour: Flavour = GITHUB
-    #─────────────────────────────────────────────────────────────────────────
-    def __str__(self) -> str:
-        if self.flavour == GITHUB:
-            return f'$$\n{self.text}\n$$'
-        if self.flavour == GITLAB:
-            return f'```math\n{self.text}\n```'
-        raise ValueError(f'Flavour {self.flavour} not suppoted')
-#═════════════════════════════════════════════════════════════════════════════
+    _markup: _ClassVar = {GITHUB: ('$$\n', '\n$$'),
+                          GITLAB: ('```math\n', '\n```')}
+#=======================================================================
 # Paragraph
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Paragraph(IterableElement):
@@ -473,17 +463,17 @@ class Paragraph(IterableElement):
 
     Parameters
     ----------
-    content: list[Any]
+    content: list[Any], default []
         contents of the paragraph. You can add more wih +=
     separator: str, default ''
         separator string to be used when combining the content into string
     '''
-    content: list[_Any]
+    content: list[_Any] = _field(default_factory = list)
     separator: str = ''
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         return self.separator.join(map(_sanitise_str, self.content))
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __iadd__(self, other):
         if isinstance(other, InlineElement):
             self.content.append(other)
@@ -493,7 +483,7 @@ class Paragraph(IterableElement):
             return self
         raise TypeError(f"+= has not been implemented for Paragraph with object"
                         f" {repr(other)} type '{type(other).__name__}'")
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 @_dataclass(**_maybeslots)
 class PDF(Image):
     '''PDF view using HTML
@@ -507,13 +497,13 @@ class PDF(Image):
     caption: Any, default None
         Caption text under thie image
     '''
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         path = str(self.path)
         image = (f'<object data="{path}" type="application/pdf">'
                  f'<embed src="{path}"></embed></object>')
         return image if self.caption is None else image + f'\n{self.caption}'
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 @_dataclass(**_maybeslots)
 class Quote(ContainerElement):
     '''Block of text that gets emphasized. Can be
@@ -523,12 +513,12 @@ class Quote(ContainerElement):
     content: Any
         Content to be wrapped in a quote block
     '''
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         return '> ' + str(self.content).replace('\n', '\n> ')
-#─────────────────────────────────────────────────────────────────────────────
+#-----------------------------------------------------------------------
 QuoteBlock = Quote # some backwards compatibility
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 @_dataclass(**_maybeslots)
 class Raw(InlineElement):
     '''Unsanitised text. Can be used for e.g. inserting HTML
@@ -540,8 +530,19 @@ class Raw(InlineElement):
     content: _Any
     def __str__(self) -> str:
         return str(self.content)
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 # Table
+class Align(_Enum):
+    '''Alingment codes used by Table'''
+    # _EnumDict __setitem__ detect lambdas as descriptors,
+    # because they have __get__ attribute,
+    # so they need to wrapped with a functools.partial
+    LEFT = _partial(lambda width: f':{(width - 1) * "-"}')
+    CENTER = _partial(lambda width: f':{"-" * (width - 2)}:')
+    RIGHT = _partial(lambda width: f'{(width - 1) * "-"}:')
+
+LEFT, CENTER, RIGHT = Align
+#-----------------------------------------------------------------------
 def _pad(items: _Iterable[str],
          widths: _Iterable[int],
          alignments: _Iterable[Align]
@@ -572,7 +573,7 @@ def _pad(items: _Iterable[str],
         yield (f'{item:^{width}}' if align == CENTER else
                (f'{item:>{width}}' if align == RIGHT else
                 (f'{item:<{width}}')))
-#─────────────────────────────────────────────────────────────────────────────
+#-----------------------------------------------------------------------
 _table_translation = str.maketrans({'|': '&#124;',
                                     '\n': '<br><br>'})
 @_dataclass(validate = True, **_maybeslots) # type: ignore
@@ -603,7 +604,7 @@ class Table(IterableElement):
                   _Iterable[Align]] = _field(default_factory = list)  # type: ignore
     compact: bool = False
     align_pad: _Optional[Align] = None
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     @classmethod
     def from_dict(cls,
                   data: dict[_Any, _Iterable],
@@ -629,7 +630,7 @@ class Table(IterableElement):
             align = []
 
         return cls(content, header, align, compact, align_pad)
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     @classmethod
     def from_csv(cls,
                  path_or_file: _Union[_pathlib.Path, _TextIO],
@@ -676,14 +677,14 @@ class Table(IterableElement):
             align = []
 
         return cls(content, header, align, compact, align_pad)
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
         visited, collected = _collect_iter(self.header, visited,
                                            _empty_collected())
         for row in self.content:
             visited, collected = _collect_iter(row, visited, collected)
         return visited, collected
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         header = [str(cell) for cell in self.header]
         headerlen = len(header)
@@ -732,7 +733,25 @@ class Table(IterableElement):
                        in zip(align, max_widths))]
             output.extend(_pad(row, max_widths, align) for row in content)
             return '\n'.join('| ' + ' | '.join(row) + ' |' for row in output)
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
+class TextStyle(_Enum):
+    '''Text styling options'''
+    BOLD = ('**', '**')
+    ITALIC = ('*', '*')
+    STRIKETHROUGH = ('~~', '~~')
+    HIGHLIGHT = ('==', '==')
+    UNDERLINE = ('<ins>', '</ins>')
+
+BOLD, ITALIC, STRIKETHROUGH, HIGHLIGHT, UNDERLINE = TextStyle
+#-----------------------------------------------------------------------
+class TextLevel(_Enum):
+    '''Text "scipt" levels'''
+    SUBSCRIPT = '~'
+    NORMAL = ''
+    SUPERSCRIPT = '^'
+
+SUBSCRIPT, NORMAL, SUPERSCRIPT = TextLevel
+#-----------------------------------------------------------------------
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Text(ContainerElement, InlineElement):
     '''Stylised text
@@ -751,7 +770,7 @@ class Text(ContainerElement, InlineElement):
     style: set[TextStyle] = _field(default_factory = set)
     level: TextLevel = NORMAL
     colour: _Any = None
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         # superscipt and subcript have to be the innermost
         marker = self.level.value
@@ -764,83 +783,83 @@ class Text(ContainerElement, InlineElement):
             left, right = substyle.value
             text = f'{left}{text}{right}'
         return text
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def bold(self):
         '''Makes bolded'''
         self.style.add(BOLD)
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def unbold(self):
         '''Removes bolding'''
         self.style.discard(BOLD)
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def italicize(self):
         '''Makes italics'''
         self.style.add(ITALIC)
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def unitalicize(self):
         '''Removes italics'''
         self.style.discard(ITALIC)
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def strikethrough(self):
         '''Adds strikethrough'''
         self.style.add(STRIKETHROUGH)
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def unstrikethrough(self):
         '''Removes strikethrough'''
         self.style.discard(STRIKETHROUGH)
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def highlight(self):
         '''Adds highlighting'''
         self.style.add(HIGHLIGHT)
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def unhighlight(self):
         '''Removes highlighting'''
         self.style.discard(HIGHLIGHT)
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def underline(self):
         '''Adds underlining'''
         self.style.add(UNDERLINE)
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def ununderline(self):
         '''Removes underlining'''
         self.style.discard(UNDERLINE)
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def superscribe(self):
         '''Makes text superscript'''
         self.level = SUPERSCRIPT
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def subscribe(self):
         '''Makes text subscript'''
         self.level = SUBSCRIPT
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def normalise(self):
         '''Removes superscript or subscript'''
         self.level = NORMAL
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def destyle(self):
         '''Removes all styling, but not level'''
         self.style = set()
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def reset(self):
         '''Removes all formatting'''
         self.style = set()
         self.level = NORMAL
         return self
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class TOC(Element):
     '''Marker where table of contents will be placed.
@@ -848,12 +867,19 @@ class TOC(Element):
     is stored here.'''
     level: int = 4
     _text: str = _field(init = False, default = '')
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         return self._text
-#═════════════════════════════════════════════════════════════════════════════
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 # Document
+def _flatten(content: _Iterable[_Any]) -> _Generator[_Any, None, None]:
+    '''Unpacks iterable of potential group elements'''
+    for item in content:
+        if isinstance(item, GroupElement):
+            yield from item._flatten()
+        else:
+            yield item
+#=======================================================================
 def _preprocess_document(content: _Iterable[_Any]
                          ) -> tuple[list[_Any],
                                     dict[int, list[TOC]],
@@ -874,12 +900,14 @@ def _preprocess_document(content: _Iterable[_Any]
     collected: _Collected = (_ListDict(), _ListDict())
     visited: set[int] = set()
 
-    for item in content:
+    for item in _flatten(content):
 
         if isinstance(item, str):
             new_content.append(_sanitise(item).strip())
         else:
             new_content.append(item)
+            if isinstance(item, Section):
+                item.level = 1
             if isinstance(item, TOC):
                 TOCs[item.level].append(item)
             else:
@@ -889,7 +917,7 @@ def _preprocess_document(content: _Iterable[_Any]
                     if item.level < top_level or not top_level:
                         top_level = item.level
     return new_content, TOCs, top_level, headings, *collected
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 def _process_footnotes(footnotes: dict[str, list[Footnote]]) -> str:
     '''Makes footone list text from collected footnotes and updates
     their indices'''
@@ -900,7 +928,7 @@ def _process_footnotes(footnotes: dict[str, list[Footnote]]) -> str:
             footnote._index = index
         info.append((index, footnote.content)) # Same content in previous loop
     return '\n'.join(f'[^{index}]: {content}' for index, content in info)
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 def _process_references(references: dict[tuple[str, str], list[Link]]) -> str:
     '''Makes reference list text from collected link references and updates
     and their indices'''
@@ -912,16 +940,16 @@ def _process_references(references: dict[tuple[str, str], list[Link]]) -> str:
         for link in links:
             link._index = index
     return '\n'.join(reflines)
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 def _process_header(language: _Any, content: _Any) -> str:
     language = str(language).strip().lower()
     return (f'---\n{content}\n---' if language == 'yaml' else
             (f'+++\n{content}\n+++' if language == 'toml' else
              (f';;;\n{content}\n;;;' if language == 'json' else
               f'---{language}\n{content}\n---')))
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 _punctuation_translation = str.maketrans(' ', '-', _punctuation)
-#═════════════════════════════════════════════════════════════════════════════
+#-----------------------------------------------------------------------
 def _process_TOC(TOCs: dict[int, list[TOC]],
                  headings: _Iterable[Heading],
                  top_level: int
@@ -951,7 +979,7 @@ def _process_TOC(TOCs: dict[int, list[TOC]],
         text = '\n'.join(TOCtexts[level])
         for toc in toclist:
             toc._text = text
-#═════════════════════════════════════════════════════════════════════════════
+#=======================================================================
 @_dataclass(validate = True, **_maybeslots) # type: ignore
 class Document(IterableElement):
     '''Highest level collection of elements.
@@ -959,16 +987,16 @@ class Document(IterableElement):
 
     Parameters
     ----------
-    content: list[Any]
+    content: list[Any], default []
         Content of the document. Can be made of anything convertible to strings
     header_language_and_text: tuple[()] | tuple[Any, Any]
         Header language and text. If you want a header written in
         e.g. yaml, then ("yaml", yaml_string)
     '''
-    content: list[_Any]
+    content: list[_Any] = _field(default_factory = list)
     header: _Union[tuple[()], tuple[_Any, _Any]] = _field(
                                         default_factory = tuple) # type: ignore
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __add__(self, other: _Any):
         if isinstance(other, self.__class__):
             return self.__class__(self.content + other.content, self.header)
@@ -976,14 +1004,14 @@ class Document(IterableElement):
             content = self.content.copy()
             content.append(other)
             return self.__class__(content, self.header)
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __iadd__(self, other: _Any):
         if isinstance(other, self.__class__):
             self.content += other.content
         else:
             self.content.append(other)
         return self
-    #─────────────────────────────────────────────────────────────────────────
+    #-------------------------------------------------------------------
     def __str__(self) -> str:
         (content,
          TOCs,
@@ -1004,3 +1032,74 @@ class Document(IterableElement):
             _process_TOC(TOCs, headings, top_level)
 
         return '\n\n'.join(str(item) for item in content)
+    #-------------------------------------------------------------------
+    def to_file(self, path: _pathlib.Path) -> int:
+        return path.write_text(str(self) + '\n')
+#=======================================================================
+@_dataclass(validate = True, **_maybeslots) # type: ignore
+class Section(GroupElement):
+    _title: _InitVar
+    front: list[_Any] = _field(default_factory = list)
+    subsections: list[_Any] = _field(default_factory = list)
+    _in_TOC: _InitVar[bool] = True
+    _alt_style: _InitVar[bool] = True
+    _heading: Heading = _field(init = False)
+    heading_cls: _ClassVar[type] = Heading
+    document_cls: _ClassVar[type] = Document
+    #-------------------------------------------------------------------
+    def _set_title(self, title: _Any) -> None:
+        self._heading.content = title
+
+    title = property(lambda self: self._heading.content, _set_title)
+    #-------------------------------------------------------------------
+    def _set_level(self, level) -> None:
+        self._heading.level = level
+        sublevel = level - 1
+        for subsection in self.subsections:
+            subsection.level = sublevel
+
+    level = property(lambda self: self._heading.level, _set_level)
+    #-------------------------------------------------------------------
+    def _set_in_TOC(self, state: bool) -> None:
+        self._heading.in_TOC = state
+        if not state:
+            for subsection in self.subsections:
+                subsection.in_TOC = False
+
+    in_TOC = property(lambda self: self._heading.in_TOC, _set_in_TOC)
+    #-------------------------------------------------------------------
+    def _set_alt_style(self, state: bool) -> None:
+        self._heading.alt_style = state
+
+    alt_style = property(lambda self: self._heading.alt_style, _set_alt_style)
+    #-------------------------------------------------------------------
+    def __post_init__(self, title: _Any, in_TOC: bool, alt_style: bool):
+        self._heading = self.heading_cls(title, 1,
+                                        in_TOC = in_TOC,
+                                        alt_style = alt_style)
+        for item in self.front:
+            if isinstance(item, Heading):
+                raise ValueError(f'Heading {item!r} in section front')
+        self.level = 1 # Forcing sync
+        self.in_TOC = in_TOC # Forcing sync
+    #-------------------------------------------------------------------
+    def __iadd__(self, other):
+        if isinstance(other, self.__class__):
+            self.subsections.append(other)
+        else:
+            self.front.append(other)
+        return self
+    #-------------------------------------------------------------------
+    def __str__(self) -> str:
+        return str(self.document_cls([self._flatten()]))
+    #-------------------------------------------------------------------
+    def _flatten(self) -> _Generator[_Any, None, None]:
+        yield self._heading
+        yield from _flatten(self.front)
+        for subsection in self.subsections:
+            yield from subsection._flatten()
+    #-------------------------------------------------------------------
+    def _collect(self, visited: set[int]) -> tuple[set[int], _Collected]:
+        visited, collected = _collect(self._heading, visited, _empty_collected())
+        visited, collected = _collect_iter(self.front, visited, collected)
+        return _collect_iter(self.subsections, visited, collected)

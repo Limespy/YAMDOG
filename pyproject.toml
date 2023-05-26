@@ -1,9 +1,3 @@
-[master-info]
-organisation = "https://github.com/Limespy"
-package_name = "yamdog"
-full_name = "YAMDOG"
-description = "Yet Another Markdown Only Generator"
-
 [build-system]
 requires = [
     "setuptools>=64.0",
@@ -43,8 +37,11 @@ Changelog = "https://github.com/Limespy/yamdog/blob/main/README.md#Changelog"
 
 [tool.setuptools.dynamic.dependencies]
 file = [
-    "dependencies.txt",
+    "dependencies/_main.txt",
 ]
 
 [tool.setuptools.dynamic.optional-dependencies.dev]
-file = "dependencies_dev.txt"
+file = "dependencies/dev.txt"
+
+[tool.setuptools.dynamic.optional-dependencies.build]
+file = "dependencies/build.txt"

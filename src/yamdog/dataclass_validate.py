@@ -3,9 +3,11 @@ from collections.abc import Mapping as _Mapping
 from dataclasses import *
 from dataclasses import dataclass as _dataclass_std
 from functools import wraps
+from typing import _GenericAlias as __GenericAlias # type: ignore
 from typing import _UnionGenericAlias # type: ignore
 from typing import Any as _Any
 from typing import Callable as _Callable
+from typing import ClassVar as _ClassVar
 from typing import GenericAlias as _GenericAlias # type: ignore
 from typing import Iterable as _Iterable
 from typing import Protocol as _Protocol
@@ -78,7 +80,13 @@ def _validate_fields(obj: _DataclassWrapped) -> None:
             attribute = getattr(obj, name)
         except AttributeError:
             continue
-        if messages := _validate(field.type, attribute):
+        if ((_type := field.type) is _ClassVar # type: ignore
+            or (isinstance(_type, __GenericAlias)
+                and _type.__origin__ is _ClassVar)):
+            continue
+        if isinstance(_type, InitVar):
+            _type = _type.type # type: ignore
+        if messages := _validate(_type, attribute):
             errormessages.append(f'{name}: {" ".join(messages)}')
     if errormessages:
         errormessages.insert(0,
