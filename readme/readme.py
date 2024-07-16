@@ -3,12 +3,15 @@ import pathlib
 import re
 
 import yamdog as md
-
+from limedev import readme
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
+# ======================================================================
 PATH_BASE = pathlib.Path(__file__).parent
-PATH_README = PATH_BASE / 'README.md'
-PATH_CHANGELOG = PATH_BASE / '.changelog.md'
-PATH_PYPROJECT = PATH_BASE / 'pyproject.toml'
-VERSION = md.__version__
+PATH_PYPROJECT = PATH_BASE.parent / 'pyproject.toml'
+examples = readme._import_from_path(PATH_BASE / 'examples.py')
 #=======================================================================
 def make_examples(source: str) -> md.Document:
     '''Examples are collected via source code introspection'''
@@ -183,23 +186,8 @@ def make_examples(source: str) -> md.Document:
 
     return doc
 #=======================================================================
-def make_quick_start_guide(name, pypiname, source):
+def make_quick_start_guide(name):
     doc = md.Document([
-        md.Heading('Quick start guide', 1),
-        "Here's how you can start automatically generating Markdown documents",
-        md.Heading('The first steps', 2),
-        '',
-        md.Heading('Install', 3),
-        f'''Install {name} with pip.
-        {name} uses only Python standard library so it has no additional dependencies.''',
-        md.CodeBlock(f'pip install {pypiname}'),
-        md.Heading('Import', 3),
-        f'''Import name is the same as install name, {pypiname}.''',
-        md.CodeBlock(f'import {pypiname}', 'python'),
-        md.Paragraph(['Since the package is accessed often, I use abbreviation',
-                      md.Code('md'),
-                      ' for MarkDown. The abbreviation is used throughout this document.']),
-        md.CodeBlock(f'import {pypiname} as md', 'python'),
         md.Heading('Using the package', 2),
         f'There are two main things to building a Markdown document using {name}',
         md.Listing(['Making elements',
@@ -208,44 +196,11 @@ def make_quick_start_guide(name, pypiname, source):
             md.Code('str'),
             ' on the element directly to get the markdown source']),
         md.CodeBlock('markdown_source = str(element)', 'python'),
-        '''but most of the time you will compose the elements together into an
+        '''but most of the time you will compose the elements together into a
         document''',
         md.CodeBlock('markdown_source = str(document)', 'python')
         ])
-    doc += make_examples(source)
-    return doc
-#=======================================================================
-re_heading = re.compile(r'^#* .*$')
-
-def parse_md_element(text: str):
-    if match := re_heading.match(text):
-        hashes, content = match[0].split(' ', 1)
-        return md.Heading(content, len(hashes))
-    else:
-        return md.Raw(text)
-#-----------------------------------------------------------------------
-def parse_md(text: str):
-    return md.Document([parse_md_element(item.strip())
-                        for item in text.split('\n\n')])
-#-----------------------------------------------------------------------
-def make_changelog(level: int):
-    doc = md.Document([md.Heading('Changelog', level, in_TOC = False)])
-    changelog = parse_md(PATH_CHANGELOG.read_text())
-    if changelog:
-        if (latest := changelog.content[0]).content.split(' ', 1)[0] == VERSION:
-            latest.content = f'{VERSION} {datetime.date.today().isoformat()}'
-        else:
-            raise ValueError('Changelog not up to date')
-
-        PATH_CHANGELOG.write_text(str(changelog) + '\n')
-
-        for item in changelog:
-            if isinstance(item, md.Heading):
-                item.level = level + 1
-                item.in_TOC = False
-
-        doc += changelog
-
+    doc += examples.main()
     return doc
 #=======================================================================
 def make_further_reading():
@@ -260,65 +215,18 @@ def make_further_reading():
     doc += md.Listing([basic_syntax_link, extended_syntax_link], md.UNORDERED)
     return doc
 #=======================================================================
-def make_annexes(source):
-    doc = md.Document([md.Heading('Annexes', 1)])
-    doc += md.Heading('Annex 1: README Python source', 2)
-    doc += '''And here the full source code that wrote this README.
-            This can serve as a more advanced example of what this is
-            capable of.'''
-    doc += md.Link('https://github.com/Limespy/YAMDOG/blob/main/readme.py',
-                   'The python file can also be found here')
-    doc += md.CodeBlock(source, 'python')
-    return doc
-#=======================================================================
-def make(name, pypiname, source):
-    # Setup for the badges
-    shields_url = 'https://img.shields.io/'
-
-    pypi_project_url = f'https://pypi.org/project/{pypiname}'
-    pypi_badge_info = (('v', 'PyPI Package latest release'),
-                       ('wheel', 'PyPI Wheel'),
-                       ('pyversions', 'Supported versions'),
-                       ('implementation', 'Supported implementations'))
-    pypi_badges = [md.Link(pypi_project_url,
-                           md.Image(f'{shields_url}pypi/{code}/{pypiname}.svg',
-                                    desc), '')
-                   for code, desc in pypi_badge_info]
-
-    # Starting the document
-    doc = md.Document([
-        md.Heading(f'Overview of {name}', 1, in_TOC = False),
-        md.Paragraph(pypi_badges, '\n'),
-        'Yet Another Markdown Only Generator',
-        md.Heading(f'What is {name}?', 2, in_TOC = False),
-        f'''{name} is toolkit for creating Markdown text using Python.
-        Markdown is a light and relatively simple markup language.''',
-        md.Heading('Table of Content', 3, in_TOC = False),
-        md.TOC()
+def main(project_info):
+    PYPROJECT = tomllib.loads(PATH_PYPROJECT.read_text('utf-8'))
+    master_info = PYPROJECT['tool']['limedev']
+    full_name = master_info['full_name']
+    pypiname = project_info['name']
+    semi_description = md.Document([
+        f'''{full_name} is toolkit for creating Markdown text using Python.
+        Markdown is a light and relatively simple markup language.'''
         ])
-    source = pathlib.Path(__file__).read_text('utf8')
-    doc += make_quick_start_guide(name, pypiname, source)
-    doc += make_changelog(level = 1)
-    doc += make_further_reading()
-    doc += md.HRule()
-    doc += make_annexes(source)
-    return doc
-#=======================================================================
-def main():
-    try:
-        import tomllib
-    except ModuleNotFoundError:
-        import tomli as tomllib # type: ignore
 
-    pyproject = tomllib.loads(PATH_PYPROJECT.read_text())
-    master_info = pyproject['master-info']
-    package_name = master_info["package_name"]
-    full_name = master_info.get("full_name",
-                                package_name.replace('-', ' ').capitalize())
-    description = master_info['description']
-
-    doc = make(full_name, package_name, description)
-    PATH_README.write_text(str(doc) + '\n')
-#=======================================================================
-if __name__ == '__main__':
-    main()
+    return readme.make(md, semi_description,
+                       name = full_name,
+                       pypiname = pypiname,
+                       quick_start = make_quick_start_guide(full_name),
+                       readme_body = make_further_reading())
