@@ -1,13 +1,11 @@
-from pprint import pprint
-
 import pytest
 import yamdog as md
 from yamdog import _API
-#══════════════════════════════════════════════════════════════════════════════
+# ======================================================================
 # _INDENT
-def test_INDENT_is_4_spaces():
-    assert _API._INDENT == ' '*4
-#══════════════════════════════════════════════════════════════════════════════
+def test_RAW_INDENT_is_4_spaces():
+    assert _API._RAW_INDENT == ' '*4
+# ======================================================================
 # _sanitise_str
 @pytest.mark.parametrize("string, expected", [
     ('test', 'test'),
@@ -18,7 +16,7 @@ def test_INDENT_is_4_spaces():
         text''',  'test text')])
 def test_string_sanitisation(string, expected):
     assert _API._sanitise_str(string) == expected
-#══════════════════════════════════════════════════════════════════════════════
+# ======================================================================
 class Test_collect_iter:
     def test_collect_iter_single(self):
         ref = md.Link('target', 'content', 'title')
@@ -58,7 +56,7 @@ class Test_collect_iter:
         expected_fn = {str(footnote1.content): [footnote1],
                        str(footnote2.content): [footnote2]}
         assert dict(footnotes) == expected_fn
-#══════════════════════════════════════════════════════════════════════════════
+# ======================================================================
 # Header
 @pytest.mark.parametrize("args,expected", [
     (('yaml', 'test'),  '---\ntest\n---'),

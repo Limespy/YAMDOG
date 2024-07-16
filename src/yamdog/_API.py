@@ -11,20 +11,16 @@ import sys as _sys
 from abc import ABC as _ABC
 from abc import abstractmethod as _abstractmethod
 from collections import defaultdict as _defaultdict
-from collections.abc import Collection as _Collection
 from collections.abc import Iterable as _Iterable
-from collections.abc import Sequence as _Sequence
 from enum import Enum as _Enum
 from functools import partial as _partial
 from io import IOBase as _IOBase
 from string import punctuation as _punctuation
 from typing import Any as _Any
-from typing import Callable as _Callable
 from typing import ClassVar as _ClassVar
 from typing import Generator as _Generator
 from typing import Optional as _Optional
 from typing import TextIO as _TextIO
-from typing import Union as _Union
 
 from .dataclass_validate import dataclass as _dataclass
 from .dataclass_validate import field as _field
@@ -33,8 +29,8 @@ from .dataclass_validate import InitVar as _InitVar
 # AUXILIARIES
 # To skip using slots on python 3.9
 _maybeslots = {} if _sys.version_info[1] <= 9 else {'slots': True}
-#-----------------------------------------------------------------------
-_INDENT = ' ' * 4
+_IS_VALIDATION = True
+_RAW_INDENT = ' ' * 4
 #-----------------------------------------------------------------------
 class Flavour(_Enum):
     '''Variations of the Markdown syntax'''
@@ -116,7 +112,7 @@ class Element:
     def __add__(self, other):
         return Document([self, other]) # type: ignore
 #=======================================================================
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class StrWrapElement(Element):
     '''Str is by wrapping with prefix and suffix
     '''
@@ -126,7 +122,7 @@ class StrWrapElement(Element):
     def __str__(self) -> str:
         return f'{self._markup[0]}{self.text}{self._markup[1]}'
 #=======================================================================
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class FlavouredStrWrapElement(Element):
     '''Str wrap where wrapping is based on markup flavour
     '''
@@ -186,7 +182,7 @@ class GroupElement(CollectableElement):
 #=======================================================================
 #=======================================================================
 # Checkbox
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class Checkbox(ContainerElement):
     '''[x] Checkbox
 
@@ -285,7 +281,7 @@ class Footnote(ContainerElement, InlineElement):
         return f'[^{self._index}]'
 #=======================================================================
 # Heading
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class Heading(ContainerElement):
     '''One line of text to separate sections from each other
 
@@ -378,13 +374,12 @@ class Link(InlineElement, CollectableElement):
 class ListingStyle(_Enum):
     '''Styles of listing'''
                 # prefixes, prefix_length
-    ORDERED = _partial(lambda : (f'{n}. ' for n in _itertools.count(1, 1)))
-    UNORDERED = _partial(_itertools.repeat, '- ')
-    DEFINITION = _partial(_itertools.repeat, ': ')
-
+    ORDERED =  (_partial(lambda : (f'{n}. ' for n in _itertools.count(1, 1))),)
+    UNORDERED = (_partial(_itertools.repeat, '- '),)
+    DEFINITION = (_partial(_itertools.repeat, ': '),)
 ORDERED, UNORDERED, DEFINITION = ListingStyle
 #-----------------------------------------------------------------------
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class Listing(IterableElement):
     '''List of items
 
@@ -403,13 +398,13 @@ class Listing(IterableElement):
     #-------------------------------------------------------------------
     def __str__(self) -> str:
         output = []
-        for item, prefix in zip(self.content, self.style.value()):
+        for item, prefix in zip(self.content, self.style.value[0]()):
             if (isinstance(item, tuple)
                 and len(item) == 2
                 and isinstance(item[1], Listing)):
                 output.append(prefix + str(item[0]))
-                output.append(_INDENT
-                              + str(item[1]).replace('\n', '\n'+ _INDENT))
+                output.append(_RAW_INDENT
+                              + str(item[1]).replace('\n', '\n'+ _RAW_INDENT))
             else:
                 output.append(prefix
                               + str(item).replace('\n', '\n'+ ' '* len(prefix)))
@@ -428,7 +423,7 @@ def make_checklist(items: _Iterable[tuple[_Any, bool]]) -> Listing:
         Unorderd listing containing checkboxes'''
     return Listing([Checkbox(*item) for item in items], UNORDERED)
 #=======================================================================
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class Math(FlavouredStrWrapElement, InlineElement):
     '''Inline KaTeX math notation
 
@@ -442,7 +437,7 @@ class Math(FlavouredStrWrapElement, InlineElement):
     _markup: _ClassVar = {GITHUB: ('$', '$'),
                           GITLAB: ('$`', '`$')}
 #=======================================================================
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class MathBlock(FlavouredStrWrapElement):
     '''KaTeX math notation in a block
 
@@ -457,7 +452,7 @@ class MathBlock(FlavouredStrWrapElement):
                           GITLAB: ('```math\n', '\n```')}
 #=======================================================================
 # Paragraph
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class Paragraph(IterableElement):
     '''Section of text
 
@@ -537,9 +532,9 @@ class Align(_Enum):
     # _EnumDict __setitem__ detect lambdas as descriptors,
     # because they have __get__ attribute,
     # so they need to wrapped with a functools.partial
-    LEFT = _partial(lambda width: f':{(width - 1) * "-"}')
-    CENTER = _partial(lambda width: f':{"-" * (width - 2)}:')
-    RIGHT = _partial(lambda width: f'{(width - 1) * "-"}:')
+    LEFT = (lambda width: f':{"-" * (width - 1)}',)
+    CENTER = (lambda width: f':{"-" * (width - 2)}:',)
+    RIGHT = (lambda width: f'{"-" * (width - 1)}:',)
 
 LEFT, CENTER, RIGHT = Align
 #-----------------------------------------------------------------------
@@ -576,7 +571,7 @@ def _pad(items: _Iterable[str],
 #-----------------------------------------------------------------------
 _table_translation = str.maketrans({'|': '&#124;',
                                     '\n': '<br><br>'})
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class Table(IterableElement):
     '''Table of
 
@@ -586,7 +581,7 @@ class Table(IterableElement):
         Main body of the table
     header: Iterable
         Header of the table. Will be padded to table width
-    align: Align | Iterable[Alingment]
+    align: Align | Iterable[Alingn]
         Alignment of the columns. LEFT, CENTER, RIGHT
         If just Align, the all columns are aligned with that.
         If iterable, then each item corresponds to one column and
@@ -600,24 +595,23 @@ class Table(IterableElement):
     '''
     content: _Iterable[_Iterable]
     header: _Iterable
-    align: _Union[Align,
-                  _Iterable[Align]] = _field(default_factory = list)  # type: ignore
+    align: Align | _Iterable[Align] = _field(default_factory = list)  # type: ignore
     compact: bool = False
-    align_pad: _Optional[Align] = None
+    align_pad: Align | None = None
     #-------------------------------------------------------------------
     @classmethod
     def from_dict(cls,
                   data: dict[_Any, _Iterable],
-                  align: _Union[Align, _Iterable[Align], None] = None,
+                  align: Align | _Iterable[Align] | None = None,
                   compact: bool = False,
-                  align_pad: _Optional[Align] = None):
+                  align_pad: Align | None = None):
         '''Assembles Table from dictionary
 
         Parameters
         ----------
         data : dict[_Any, _Iterable]
             _description_
-        align : _Union[Align, _Iterable[Align], None], optional
+        align : Align | _Iterable[Align] | None, optional
             _description_, by default None
         compact : bool, optional
             _description_, by default False
@@ -633,11 +627,11 @@ class Table(IterableElement):
     #-------------------------------------------------------------------
     @classmethod
     def from_csv(cls,
-                 path_or_file: _Union[_pathlib.Path, _TextIO],
-                 header: _Union[bool, _Iterable] = True,
-                 align: _Union[Align, _Iterable[Align], None] = None,
+                 path_or_file: _pathlib.Path | _TextIO,
+                 header: bool | _Iterable = True,
+                 align: Align | _Iterable[Align] | None = None,
                  compact: bool = False,
-                 align_pad: _Optional[Align] = None,
+                 align_pad: Align | None = None,
                  *,
                  encoding = 'utf8',
                  **csvkwargs: _Any):
@@ -706,17 +700,17 @@ class Table(IterableElement):
 
         # Pad align with Align
         if isinstance(self.align, Align):
-            align = [self.align] * max_rowlen
+            aligns = [self.align] * max_rowlen
         else:
-            align = list(self.align)
+            aligns = list(self.align)
 
-            align.extend([(align[-1] if align else LEFT)
+            aligns.extend([(aligns[-1] if aligns else LEFT)
                           if self.align_pad is None else self.align_pad
-                          ] * (max_rowlen - len(align)))
+                          ] * (max_rowlen - len(aligns)))
 
         # Build the table
         if self.compact: # Compact table
-            output = [header, (alignment.value(3) for alignment in align)]
+            output = [header, (alignment.value[0](3) for alignment in aligns)]
             output.extend(content)
             return '\n'.join('|'.join(row) for row in output)
         else: # Pretty table
@@ -728,10 +722,10 @@ class Table(IterableElement):
                     if len(cell) > max_widths[i]:
                         max_widths[i] = len(cell)
 
-            output = [_pad(header, max_widths, align),
-                      (alignment.value(width) for alignment, width
-                       in zip(align, max_widths))]
-            output.extend(_pad(row, max_widths, align) for row in content)
+            output = [_pad(header, max_widths, aligns),
+                      (align.value[0](width) for align, width
+                       in zip(aligns, max_widths))]
+            output.extend(_pad(row, max_widths, aligns) for row in content)
             return '\n'.join('| ' + ' | '.join(row) + ' |' for row in output)
 #=======================================================================
 class TextStyle(_Enum):
@@ -752,7 +746,7 @@ class TextLevel(_Enum):
 
 SUBSCRIPT, NORMAL, SUPERSCRIPT = TextLevel
 #-----------------------------------------------------------------------
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class Text(ContainerElement, InlineElement):
     '''Stylised text
 
@@ -860,7 +854,7 @@ class Text(ContainerElement, InlineElement):
         self.level = NORMAL
         return self
 #=======================================================================
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class TOC(Element):
     '''Marker where table of contents will be placed.
     Also during conversion to text the text for table of contents
@@ -969,7 +963,7 @@ def _process_TOC(TOCs: dict[int, list[TOC]],
         if n_duplicates := refcounts[ref]: # Handling multiple same refs
             ref += f'-{n_duplicates}'
 
-        line = (f'{(heading.level - top_level) * _INDENT}'
+        line = (f'{(heading.level - top_level) * _RAW_INDENT}'
                 f'- [{content}]({ref})')
         for TOClevel in TOCs:
             if heading.level <= TOClevel:
@@ -980,7 +974,7 @@ def _process_TOC(TOCs: dict[int, list[TOC]],
         for toc in toclist:
             toc._text = text
 #=======================================================================
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class Document(IterableElement):
     '''Highest level collection of elements.
     Each piece is separated by empty line
@@ -994,7 +988,7 @@ class Document(IterableElement):
         e.g. yaml, then ("yaml", yaml_string)
     '''
     content: list[_Any] = _field(default_factory = list)
-    header: _Union[tuple[()], tuple[_Any, _Any]] = _field(
+    header: tuple[()] | tuple[_Any, _Any] = _field(
                                         default_factory = tuple) # type: ignore
     #-------------------------------------------------------------------
     def __add__(self, other: _Any):
@@ -1036,7 +1030,7 @@ class Document(IterableElement):
     def to_file(self, path: _pathlib.Path) -> int:
         return path.write_text(str(self) + '\n')
 #=======================================================================
-@_dataclass(validate = True, **_maybeslots) # type: ignore
+@_dataclass(validate = _IS_VALIDATION, **_maybeslots) # type: ignore
 class Section(GroupElement):
     _title: _InitVar
     front: list[_Any] = _field(default_factory = list)
