@@ -1,2 +1,0 @@
-limedev[test] >= 0.1.0
-Markdown >= 3.4.3
