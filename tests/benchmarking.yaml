@@ -1,0 +1,10 @@
+0.6.0:
+  Dataclass:
+    size [B]: 328
+    time [us]: 0.268
+  Validated DC:
+    size [B]: 328
+    time [us]: 2.59
+  Pydantic:
+    size [B]: 632
+    time [us]: 1.05
